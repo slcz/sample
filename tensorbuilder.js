@@ -42,11 +42,29 @@ var component = {
     }
 }
 
-function text_box(doc) {
+function label(doc, container) {
     var text = new PIXI.Text(doc,
         {fontFamily: 'Arial', fontSize: 12, fill: 0xffffff, align : 'center'});
     text.visible = false;
-    return text;
+    var children = container.children;
+    var lx = 0, ly = 0;
+    for (var i = 0; i < children.length; i ++) {
+        var c = children[i];
+        if (c.x > lx)
+            lx = c.x;
+        if (c.y + c.height > ly)
+            ly = c.y + c.height;
+        c.mouseover = function (data) {
+            text.visible = true;
+        }
+        c.mouseout = function (data) {
+            text.visible = false;
+        }
+    }
+    text.x = lx;
+    text.y = ly;
+
+    container.addChild(text);
 }
 
 var FullyConnected = Object.create(component);
@@ -65,11 +83,9 @@ FullyConnected.draw = function (stage, ratio, maxw, maxh) {
     var radius = 4;
     var w = Math.floor(radius * 2 * ratio);
     var h = Math.floor(radius * 2 * ratio);
-    var text = text_box(this.doc());
 
     stride = 1;
     var x = 0, y = 0;
-    var lx, ly;
     for (var i = 0; i < size; i ++) {
         var circle = new PIXI.Graphics();
         circle.beginFill(0x000000);
@@ -81,20 +97,10 @@ FullyConnected.draw = function (stage, ratio, maxw, maxh) {
         circle.hitArea = new PIXI.Rectangle(x, y, radius, radius);
         x += stride;
         y += stride;
-        lx = x;
-        ly = y + Math.floor(h);
-        circle.mouseover = function (data) {
-            text.visible = true;
-        }
-        circle.mouseout = function (data) {
-            text.visible = false;
-        }
         if (x >= maxw || y >= maxh)
             break;
     }
-    text.x = lx;
-    text.y = ly;
-    stage.addChild(text);
+    label(this.doc(), stage);
 }
 
 var component3D = Object.create(component);
@@ -107,9 +113,6 @@ component3D.draw = function(stage, ratio, maxw, maxh) {
     var w = Math.floor(width  * ratio);
     var h = Math.floor(height * ratio);
 
-    var text = new PIXI.Text(this.doc(),
-        {fontFamily: 'Arial', fontSize: 12, fill: 0xffffff, align : 'center'});
-
     w = w < 4 ? 4 : w;
     h = h < 4 ? 4 : h;
 
@@ -119,8 +122,7 @@ component3D.draw = function(stage, ratio, maxw, maxh) {
     if (stride > w / 2)
         stride = Math.floor(w / 2)
     var x = 0, y = 0;
-    var lx, ly, l = (channels > 32 ? 32 : channels);
-    text.visible = false;
+    var l = (channels > 32 ? 32 : channels);
     var last_frame = false;
     var i = 0;
     w = Math.floor(w);
@@ -150,18 +152,8 @@ component3D.draw = function(stage, ratio, maxw, maxh) {
         stage.addChild(g);
         x = next_x;
         y = next_y;
-        lx = x;
-        ly = y + h;
-        g.mouseover = function (data) {
-            text.visible = true;
-        }
-        g.mouseout = function (data) {
-            text.visible = false;
-        }
     }
-    text.x = lx;
-    text.y = ly;
-    stage.addChild(text);
+    label(this.doc(), stage);
 }
 
 var Input = Object.create(component3D);
@@ -329,7 +321,6 @@ function draw_network(stage, desc) {
         var layer;
         layer = new PIXI.Container();
 
-        console.log(layerw, layerh, node.name);
         node.draw(layer, ratio, maxw, maxh);
         layer.x = x;
         layer.y = y;

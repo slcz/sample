@@ -11,25 +11,61 @@ var stage = new PIXI.Container();
 
 renderer.backgroundColor = 0x000000;
 
-function fully_connected_doc() {
-    var doc;
-
-    doc = "Fully Connected Layer " + this.name + "\n";
-    doc += "Input size: " + this.input_dim[2] + "\n";
-    doc += "Output size: " + this.output_dim[2];
-
-    return doc;
+var component = {
+    name       : "Component",
+    type       : "Type",
+    output_dim : [],
+    input_dim  : [],
+    pred       : null,
+    succ       : null,
+    link: function(pred) {
+        this.pred      = pred;
+        if (pred != null)
+            this.pred.succ = this;
+    },
+    header : function () {
+        var doc;
+        doc = this.type + " " + this.name + "\n";
+        for (var i = 0; i < this.input_dim.length; i ++) {
+            if (i == 0)
+                doc += "Input size: ";
+            doc += this.input_dim[i];
+            if (i < this.input_dim.length - 1)
+                doc += " x ";
+            else
+                doc += "\n";
+        }
+        return doc;
+    },
+    doc : function () {
+        return this.header();
+    }
 }
 
-function fully_connected_draw(stage, ratio, maxw, maxh) {
-    var size = this.output_dim[2];
+function text_box(doc) {
+    var text = new PIXI.Text(doc,
+        {fontFamily: 'Arial', fontSize: 12, fill: 0xffffff, align : 'center'});
+    text.visible = false;
+    return text;
+}
+
+var FullyConnected = Object.create(component);
+FullyConnected.type = "Fully Connected Layer";
+FullyConnected.init = function(pred, name, size) {
+    this.name = name;
+    this.link(pred);
+    var all = 1;
+    for (var i = 0; i < pred.output_dim.length; i ++)
+        all *= pred.output_dim[i];
+    this.input_dim  = [all];
+    this.output_dim = [size];
+}
+FullyConnected.draw = function (stage, ratio, maxw, maxh) {
+    var size = this.output_dim[0];
     var radius = 4;
     var w = Math.floor(radius * 2 * ratio);
     var h = Math.floor(radius * 2 * ratio);
-    var text = new PIXI.Text(this.doc(),
-        {fontFamily: 'Arial', fontSize: 12, fill: 0xffffff, align : 'center'});
-
-    text.visible = false;
+    var text = text_box(this.doc());
 
     stride = 1;
     var x = 0, y = 0;
@@ -61,156 +97,10 @@ function fully_connected_draw(stage, ratio, maxw, maxh) {
     stage.addChild(text);
 }
 
-function FullyConnected(pred, name, size) {
-    this.name = name;
-    this.pred = pred;
-    this.pred.succ     = this;
-    var all = 1;
-    for (var i = 0; i < pred.output_dim.length; i ++)
-        all *= pred.output_dim[i];
-    this.input_dim  = [1, 1, all];
-    this.output_dim = [1, 1, size];
-    this.draw = fully_connected_draw;
-    this.doc  = fully_connected_doc;
-    this.succ = undefined;
-
-    return this;
-}
-
-function input_doc() {
-    var doc = "";
-
-    doc = "Input Layer " + this.name + ":\n"
-    doc += "Dimension: ";
-    doc += this.input_dim[0] + " x " + this.input_dim[1] + " x " + this.input_dim[2] + "\n";
-    return doc;
-}
-
-function Input(pred, name, width, height, channels) {
-    this.name  = name;
-    this.pred  = null;
-    this.input_dim = this.output_dim = [width, height, channels];
-
-    this.draw = threeDdraw;
-    this.doc  = input_doc;
-
-    return this;
-}
-
-Input.prototype.imagename = ["input.jpg"];
-
-function Pool2d(pred, name, kernel_width, kernel_height, stride, padding_same) {
-    this.name          = name;
-    this.pred          = pred;
-    this.pred.succ     = this;
-    this.kernel_width  = kernel_width;
-    this.kernel_height = kernel_height;
-    this.stride        = stride;
-    this.padding_same  = padding_same;
-    this.input_dim     = pred.output_dim;
-    var iw = this.input_dim[0];
-    var ih = this.input_dim[1];
-    var ic = this.input_dim[2];
-
-    var ow = iw;
-    var oh = ih;
-
-    if (this.padding_same == false) {
-        ow -= this.kernel_width - 1;
-        oh -= this.kernel_height - 1;
-    }
-    ow = Math.floor(ow / stride);
-    oh = Math.floor(oh / stride);
-    this.output_dim    = [ow, oh, ic];
-    this.draw          = threeDdraw;
-    this.doc           = pool2d_doc;
-    this.succ          = undefined;
-
-    return this;
-}
-
-Pool2d.prototype.imagename = ["pooling.png"];
-
-function pool2d_doc() {
-    var doc = "";
-
-    doc = "Pooling Layer " + this.name + ":\n"
-    doc += "Input: ";
-    doc += this.input_dim[0] + " x " + this.input_dim[1] + " x " + this.input_dim[2] + "\n";
-    doc += "Output: ";
-    doc += this.output_dim[0] + " x " + this.output_dim[1] + " x " + this.output_dim[2] + "\n";
-    doc += "Kernel: ";
-    doc += this.kernel_width + " x " + this.kernel_height + "\n";
-    doc += "*Stride: " + this.stride;
-    doc += " *Padding: " + (this.padding_same ? "Same" : "Valid");
-    return doc;
-}
-
-function loadtexture(name, width, height, size, gap) {
-    var textures = [];
-
-    var texture = PIXI.utils.TextureCache[name];
-
-    for (var i = 0; i < width; i ++) {
-        for (var j = 0; j < height; j ++) {
-            var sub = new PIXI.Texture(texture, new PIXI.Rectangle(i * (size + gap), j * (size + gap), size, size));
-            textures.push(sub);
-        }
-    }
-    return textures;
-}
-
-function Conv2d(pred, name, channels, kernel_width, kernel_height, stride, padding_same, activation) {
-    this.name          = name;
-    this.pred          = pred;
-    this.pred.succ     = this;
-    this.kernel_width  = kernel_width;
-    this.kernel_height = kernel_height;
-    this.channels      = channels;
-    this.stride        = stride;
-    this.padding_same  = padding_same;
-    this.activation    = activation;
-    this.input_dim     = pred.output_dim;
-    var iw = this.input_dim[0];
-    var ih = this.input_dim[1];
-    var ic = this.input_dim[2];
-
-    var ow = iw;
-    var oh = ih;
-
-    if (this.padding_same == false) {
-        ow -= this.kernel_width - 1;
-        oh -= this.kernel_height - 1;
-    }
-    ow = Math.floor(ow / stride);
-    oh = Math.floor(oh / stride);
-    this.output_dim    = [ow, oh, this.channels];
-    this.draw          = threeDdraw;
-    this.doc           = conv2d_doc;
-    this.succ          = undefined;
-
-    return this;
-}
-
-Conv2d.prototype.imagename = ["convolution.png"];
-
-function conv2d_doc() {
-    var doc = "";
-
-    doc = "Convolutional Layer " + this.name + ":\n"
-    doc += "Input: ";
-    doc += this.input_dim[0] + " x " + this.input_dim[1] + " x " + this.input_dim[2] + "\n";
-    doc += "Output: ";
-    doc += this.output_dim[0] + " x " + this.output_dim[1] + " x " + this.output_dim[2] + "\n";
-    doc += "Kernel: ";
-    doc += this.kernel_width + " x " + this.kernel_height + " x " + this.channels + "\n";
-    doc += "*Stride: " + this.stride;
-    doc += " *Padding: " + (this.padding_same ? "Same" : "Valid");
-    doc += " *Activation: " + (this.activation ? "ReLU" : "None");
-    return doc;
-}
-
-function threeDdraw(stage, ratio, maxw, maxh) {
+var component3D = Object.create(component);
+component3D.type = "3D";
+component3D.imagename = [];
+component3D.draw = function(stage, ratio, maxw, maxh) {
     var width    = this.output_dim[0];
     var height   = this.output_dim[1];
     var channels = this.output_dim[2];
@@ -274,6 +164,89 @@ function threeDdraw(stage, ratio, maxw, maxh) {
     stage.addChild(text);
 }
 
+var Input = Object.create(component3D);
+Input.type = "Input Layer";
+Input.imagename = ["input.jpg"];
+Input.init = function(pred, name, width, height, channels) {
+    this.name = name;
+    this.link(pred);
+    this.input_dim = this.output_dim = [width, height, channels];
+}
+
+var Pool2d = Object.create(component3D);
+Pool2d.type = "Pooling Layer";
+Pool2d.imagename = ["pooling.png"];
+Pool2d.init = function(pred, name, kernel_width, kernel_height, stride, padding_same) {
+    this.name = name;
+    this.link(pred);
+    this.kernel_width  = kernel_width;
+    this.kernel_height = kernel_height;
+    this.stride        = stride;
+    this.padding_same  = padding_same;
+    this.input_dim     = pred.output_dim;
+    var iw = this.input_dim[0];
+    var ih = this.input_dim[1];
+    var ic = this.input_dim[2];
+
+    var ow = iw;
+    var oh = ih;
+
+    if (this.padding_same == false) {
+        ow -= this.kernel_width - 1;
+        oh -= this.kernel_height - 1;
+    }
+    ow = Math.floor(ow / stride);
+    oh = Math.floor(oh / stride);
+    this.output_dim    = [ow, oh, ic];
+}
+Pool2d.doc = function() {
+    var doc = this.header();
+    doc += "Kernel: ";
+    doc += this.kernel_width + " x " + this.kernel_height + "\n";
+    doc += "*Stride: " + this.stride;
+    doc += " *Padding: " + (this.padding_same ? "Same" : "Valid");
+    return doc;
+}
+
+var Conv2d = Object.create(component3D);
+Conv2d.type = "Convolutional Layer";
+Conv2d.imagename = ["convolution.png"];
+Conv2d.init = function (pred, name, channels, kernel_width, kernel_height, stride, padding_same, activation) {
+    this.name          = name;
+    this.link(pred);
+    this.kernel_width  = kernel_width;
+    this.kernel_height = kernel_height;
+    this.channels      = channels;
+    this.stride        = stride;
+    this.padding_same  = padding_same;
+    this.activation    = activation;
+    this.input_dim     = pred.output_dim;
+    var iw = this.input_dim[0];
+    var ih = this.input_dim[1];
+    var ic = this.input_dim[2];
+
+    var ow = iw;
+    var oh = ih;
+
+    if (this.padding_same == false) {
+        ow -= this.kernel_width - 1;
+        oh -= this.kernel_height - 1;
+    }
+    ow = Math.floor(ow / stride);
+    oh = Math.floor(oh / stride);
+    this.output_dim    = [ow, oh, this.channels];
+}
+Conv2d.doc = function() {
+    var doc = this.header();
+
+    doc += "Kernel: ";
+    doc += this.kernel_width + " x " + this.kernel_height + " x " + this.channels + "\n";
+    doc += "*Stride: " + this.stride;
+    doc += " *Padding: " + (this.padding_same ? "Same" : "Valid");
+    doc += " *Activation: " + (this.activation ? "ReLU" : "None");
+    return doc;
+}
+
 var network_desc = [
     [ Input,     null, null, "input", 224, 224,  3                ],
     [ Conv2d, "input", null, "conv1_1",  64,  3, 3, 1, true, true ],
@@ -311,16 +284,16 @@ function draw_network(stage, desc) {
     var canvasw = window.innerWidth, canvash = window.innerHeight;
 
     for (var i = 0; i < desc.length; i ++) {
-        var e = desc[i];
-        var constructor = e[0];
+        var e     = desc[i];
+        var proto = e[0];
         var pred_name = e[1];
         if (pred_name != null)
             e[2] = network[pred_name];
         else
             e[2] = null;
-        var obj = Object.create(constructor.prototype);
-        var elem = constructor.apply(obj, e.slice(2, e.length));
-        network[elem.name] = elem;
+        var obj = Object.create(proto);
+        obj.init.apply(obj, e.slice(2, e.length));
+        network[obj.name] = obj;
     }
 
     var nlayers = desc.length;
@@ -328,15 +301,14 @@ function draw_network(stage, desc) {
 
     var max_width = 0, max_height = 0;
     var node = network["input"];
-    while (node != undefined) {
-        if (node.output_dim[0] > max_width)
-            max_width = node.output_dim[0];
-        if (node.output_dim.length >= 2)
-            h = node.output_dim[1];
-        else
-            h = 1;
-        if (h > max_height)
-            max_height = h;
+    while (node != null) {
+        if (node.output_dim.length > 1) {
+            if (node.output_dim[0] > max_width)
+                max_width = node.output_dim[0];
+            if (node.output_dim.length > 2)
+                if (node.output_dim[1] > max_height)
+                    max_height = node.output_dim[1];
+        }
         node = node.succ;
     }
 
@@ -352,12 +324,13 @@ function draw_network(stage, desc) {
     var max_height = 0;
 
     var node = network["input"];
-    while (node != undefined) {
-        var maxw = layerw * 0.9, maxh = layerh * 0.9;
+    while (node != null) {
+        var maxw = Math.floor(layerw * 0.9), maxh = Math.floor(layerh * 0.9);
         var layer;
         layer = new PIXI.Container();
 
-        node.draw(layer, ratio, Math.floor(layerw * 0.9), Math.floor(layerh * 0.9));
+        console.log(layerw, layerh, node.name);
+        node.draw(layer, ratio, maxw, maxh);
         layer.x = x;
         layer.y = y;
         stage.addChild(layer);
@@ -379,7 +352,7 @@ function draw_network(stage, desc) {
 
 var components = [Input, Conv2d, Pool2d];
 PIXI.loader.add(components.map(function(x) {
-    return x.prototype.imagename;
+    return x.imagename;
 })).load(setup);
 
 function setup() {

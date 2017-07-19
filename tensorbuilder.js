@@ -13,6 +13,15 @@ renderer.backgroundColor = 0x000000;
 
 var component = {
     name       : "Component",
+    image_collection : [],
+    __image__  : [],
+    set imagename(name) {
+        this.image_collection.push(name);
+        this.__image__ = name;
+    },
+    get imagename() {
+        return this.__image__;
+    },
     type       : "Type",
     output_dim : [],
     input_dim  : [],
@@ -341,10 +350,7 @@ function draw_network(stage, desc) {
     return (layers);
 }
 
-var components = [Input, Conv2d, Pool2d];
-PIXI.loader.add(components.map(function(x) {
-    return x.imagename;
-})).load(setup);
+PIXI.loader.add(component.image_collection).load(setup);
 
 function setup() {
 

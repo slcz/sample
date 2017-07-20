@@ -1,22 +1,14 @@
-var renderer = PIXI.autoDetectRenderer();
 
-renderer.view.style.position = "absolute";
-renderer.view.style.display = "block";
-renderer.autoResize = true;
-renderer.resize(window.innerWidth, window.innerHeight);
-
-document.body.appendChild(renderer.view);
-
-var stage = new PIXI.Container();
-
-renderer.backgroundColor = 0x000000;
+var image_collection = {
+    collection : []
+}
 
 var component = {
     name       : "Component",
-    image_collection : [],
+    collection:        {},
     __image__  : [],
     set imagename(name) {
-        this.image_collection.push(name);
+        image_collection.collection.push(name);
         this.__image__ = name;
     },
     get imagename() {
@@ -27,10 +19,12 @@ var component = {
     input_dim  : [],
     pred       : null,
     succ       : null,
-    link: function(pred) {
+    link: function(pred, name) {
+        this.name      = name;
         this.pred      = pred;
         if (pred != null)
             this.pred.succ = this;
+        component.collection[name] = this;
     },
     header : function () {
         var doc;
@@ -79,8 +73,7 @@ function label(doc, container) {
 var FullyConnected = Object.create(component);
 FullyConnected.type = "Fully Connected Layer";
 FullyConnected.init = function(pred, name, size) {
-    this.name = name;
-    this.link(pred);
+    this.link(pred, name);
     var all = 1;
     for (var i = 0; i < pred.output_dim.length; i ++)
         all *= pred.output_dim[i];
@@ -151,7 +144,7 @@ component3D.draw = function(stage, ratio, maxw, maxh) {
             g.endFill();
             g.hitArea = new PIXI.Rectangle(x, y, w, h);
         } else {
-            g = new PIXI.Sprite(PIXI.loader.resources[this.imagename].texture);
+            g = new PIXI.Sprite(PIXI.loader.resources[this.imagename[0]].texture);
             g.x = x;
             g.y = y;
             g.width = w;
@@ -169,8 +162,7 @@ var Input = Object.create(component3D);
 Input.type = "Input Layer";
 Input.imagename = ["input.jpg"];
 Input.init = function(pred, name, width, height, channels) {
-    this.name = name;
-    this.link(pred);
+    this.link(pred, name);
     this.input_dim = this.output_dim = [width, height, channels];
 }
 
@@ -178,8 +170,7 @@ var Pool2d = Object.create(component3D);
 Pool2d.type = "Pooling Layer";
 Pool2d.imagename = ["pooling.png"];
 Pool2d.init = function(pred, name, kernel_width, kernel_height, stride, padding_same) {
-    this.name = name;
-    this.link(pred);
+    this.link(pred, name);
     this.kernel_width  = kernel_width;
     this.kernel_height = kernel_height;
     this.stride        = stride;
@@ -213,8 +204,7 @@ var Conv2d = Object.create(component3D);
 Conv2d.type = "Convolutional Layer";
 Conv2d.imagename = ["convolution.png"];
 Conv2d.init = function (pred, name, channels, kernel_width, kernel_height, stride, padding_same, activation) {
-    this.name          = name;
-    this.link(pred);
+    this.link(pred, name);
     this.kernel_width  = kernel_width;
     this.kernel_height = kernel_height;
     this.channels      = channels;
@@ -248,40 +238,9 @@ Conv2d.doc = function() {
     return doc;
 }
 
-var network_desc = [
-    [ Input,     null, null, "input", 224, 224,  3                ],
-    [ Conv2d, "input", null, "conv1_1",  64,  3, 3, 1, true, true ],
-    [ Conv2d, "conv1_1", null, "conv1_2",64,  3, 3, 1, true, true ],
-    [ Pool2d, "conv1_2", null, "pool1", 2, 2, 2, true],
-
-    [ Conv2d, "pool1",   null, "conv2_1", 128, 3, 3, 1, true, true ],
-    [ Conv2d, "conv2_1", null, "conv2_2", 128, 3, 3, 1, true, true ],
-    [ Pool2d, "conv2_2", null, "pool2", 2, 2, 2, true],
-
-    [ Conv2d, "pool2",   null, "conv3_1", 256, 3, 3, 1, true, true ],
-    [ Conv2d, "conv3_1", null, "conv3_2", 256, 3, 3, 1, true, true ],
-    [ Conv2d, "conv3_2", null, "conv3_3", 256, 3, 3, 1, true, true ],
-    [ Pool2d, "conv3_3", null, "pool3", 2, 2, 2, true],
-
-    [ Conv2d, "pool3",   null, "conv4_1", 512, 3, 3, 1, true, true ],
-    [ Conv2d, "conv4_1", null, "conv4_2", 512, 3, 3, 1, true, true ],
-    [ Conv2d, "conv4_2", null, "conv4_3", 512, 3, 3, 1, true, true ],
-    [ Pool2d, "conv4_3", null, "pool4", 2, 2, 2, true],
-
-    [ Conv2d, "pool4",   null, "conv5_1", 512, 3, 3, 1, true, true ],
-    [ Conv2d, "conv5_1", null, "conv5_2", 512, 3, 3, 1, true, true ],
-    [ Conv2d, "conv5_2", null, "conv5_3", 512, 3, 3, 1, true, true ],
-    [ Pool2d, "conv5_3", null, "pool5", 2, 2, 2, true],
-
-    [ FullyConnected, "pool5", null, "FC1", 4096],
-    [ FullyConnected, "FC1",   null, "FC2", 4096],
-    [ FullyConnected, "FC2",   null, "FC3", 1000]
-];
-
 const buttonwidth = 20;
 
 function draw_network(stage, desc) {
-    var network = {};
     var canvasw = window.innerWidth, canvash = window.innerHeight;
 
     for (var i = 0; i < desc.length; i ++) {
@@ -289,19 +248,18 @@ function draw_network(stage, desc) {
         var proto = e[0];
         var pred_name = e[1];
         if (pred_name != null)
-            e[2] = network[pred_name];
+            e[2] = component.collection[pred_name];
         else
             e[2] = null;
         var obj = Object.create(proto);
         obj.init.apply(obj, e.slice(2, e.length));
-        network[obj.name] = obj;
     }
 
     var nlayers = desc.length;
     var layerw = Math.floor(canvasw / nlayers), layerh = Math.floor(canvash);
 
     var max_width = 0, max_height = 0;
-    var node = network["input"];
+    var node = component.collection["input"];
     while (node != null) {
         if (node.output_dim.length > 1) {
             if (node.output_dim[0] > max_width)
@@ -324,7 +282,7 @@ function draw_network(stage, desc) {
 
     var max_height = 0;
 
-    var node = network["input"];
+    var node = component.collection["input"];
     while (node != null) {
         var maxw = Math.floor(layerw * 0.9), maxh = Math.floor(layerh * 0.9);
         var layer;
@@ -350,11 +308,16 @@ function draw_network(stage, desc) {
     return (layers);
 }
 
-PIXI.loader.add(component.image_collection).load(setup);
-
 function setup() {
-
     var networklayers;
+
+    var width_input = Object.create(number_input);
+    width_input.init(stage, 32, 0, 0, 9999);
+    width_input.container.x = 0;
+
+    var height_input = Object.create(number_input);
+    height_input.init(stage, 32, 0, 0, 999);
+    height_input.container.x = 200;
 
     networklayers = new PIXI.Container();
     layers = draw_network(networklayers, network_desc);
@@ -410,7 +373,183 @@ function setdrag(stage) {
         .on('touchmove', ondragmove);
 }
 
-function update() {
-    renderer.render(stage);
-    requestAnimationFrame(update);
+var timer_queue = {
+    queue: [],
+    add : function(f, o) {
+        var q = Object.create(null);
+        q.f = f;
+        q.o = o;
+        this.queue.push(q);
+    },
+    remove : function(f, o) {
+        var index = -1;
+        for (var i = 0; i < this.queue.length; i ++) {
+            var q = this.queue[i];
+            if (q.f == f && q.o == o) {
+                index = i;
+                break;
+            }
+        }
+        if (index != -1)
+            this.queue.splice(index, 1);
+    }
 }
+
+function update() {
+    requestAnimationFrame(update);
+
+    for (var i = 0; i < timer_queue.queue.length; i ++) {
+        var q = timer_queue.queue[i];
+        q.f.call(q.o);
+    }
+
+    renderer.render(stage);
+}
+
+var ui_images = {
+    __image__  : [],
+    set imagename(name) {
+        image_collection.collection.push(name);
+        this.__image__ = name;
+    },
+    get imagename() {
+        return this.__image__;
+    },
+}
+
+function register_event(obj, par, _start, _end, parameter) {
+    var start = function (e) { _start.call(par, e, parameter); }
+    var end   = function (e) { _end.call(par, e, parameter); }
+    obj
+        .on('mousedown', start)
+        .on('touchstart', start)
+        .on('mouseup', end)
+        .on('mouseupoutside', end)
+        .on('touchend', end)
+        .on('touchendoutside', end);
+    obj.interactive = true;
+}
+
+var number_input = Object.create(ui_images);
+number_input.imagename = ['left.png', 'right.png'];
+number_input.init = function (parent, height, initial_value, low, high) {
+    if (low > high)
+        low = high;
+    var ndigit = 0;
+    var tmp = high;
+    while (tmp != 0) {
+        ndigit ++;
+        tmp = Math.floor(tmp / 10);
+    }
+    this.low = low;
+    this.high = high;
+    this.value = initial_value;
+    this.ndigit = ndigit;
+    this.height = height;
+    this.container = new PIXI.Container();
+    var fontstyle = new PIXI.TextStyle( {
+        fontFamily: "Courier New",
+        fontSize:  height,
+        fontStyle: 'italic',
+        fontWeight: 'bold',
+        align: 'right',
+        fill: 0xffffff });
+    var digits = ('0'.repeat(ndigit) + this.value).slice(-ndigit);
+    this.timeout = 10;
+    this.text = new PIXI.Text(digits, fontstyle);
+    this.leftbutton  = new PIXI.Sprite(PIXI.loader.resources[this.imagename[0]].texture);
+    this.rightbutton = new PIXI.Sprite(PIXI.loader.resources[this.imagename[1]].texture);
+    this.leftbutton.width = this.rightbutton.width = this.leftbutton.height = this.rightbutton.height = height;
+    this.leftbutton.x = 0;
+    this.rightbutton.x = this.leftbutton.width + this.text.width;
+    this.text.x = this.leftbutton.width;
+    this.container.addChild(this.leftbutton);
+    this.container.addChild(this.text);
+    this.container.addChild(this.rightbutton);
+    this.delta = 0;
+
+    this.timer_value = 0;
+
+    function settext() {
+        var value = Math.floor(this.timer_value / this.timeout);
+        this.value += this.delta * value;
+        this.value = this.value < this.low ? this.low : this.value > this.high ? this.high : this.value;
+        var digits = ('0'.repeat(this.ndigit) + this.value).slice(-this.ndigit);
+        this.text.text = digits;
+    }
+
+    function timer() {
+        this.timer_value ++;
+        if (this.timer_value % this.timeout == 0) {
+            settext.call(this);
+            this.timeout = this.timeout == 1 ? 1 : this.timeout - 1;
+        }
+    }
+
+    function buttonstart (e, p) {
+        this.timer_value = 0;
+        this.timeout = 10;
+        this.delta = p;
+        timer_queue.add(timer, this);
+    }
+
+    function buttonend (e, p) {
+        if (this.timer_value % this.timeout != 0) {
+            this.timer_value += this.timeout;
+            settext.call(this);
+        }
+        this.timer_value = 0;
+        this.delta = p;
+        timer_queue.remove(timer, this);
+    }
+
+    register_event(this.leftbutton,  this, buttonstart, buttonend, -1);
+    register_event(this.rightbutton, this, buttonstart, buttonend,  1);
+
+    parent.addChild(this.container);
+}
+
+var renderer = PIXI.autoDetectRenderer();
+
+renderer.view.style.position = "absolute";
+renderer.view.style.display = "block";
+renderer.autoResize = true;
+renderer.resize(window.innerWidth, window.innerHeight);
+
+document.body.appendChild(renderer.view);
+
+var stage = new PIXI.Container();
+
+renderer.backgroundColor = 0x000000;
+
+PIXI.loader.add(image_collection.collection).load(setup);
+
+var network_desc = [
+    [ Input,     null, null, "input", 224, 224,  3                ],
+    [ Conv2d, "input", null, "conv1_1",  64,  3, 3, 1, true, true ],
+    [ Conv2d, "conv1_1", null, "conv1_2",64,  3, 3, 1, true, true ],
+    [ Pool2d, "conv1_2", null, "pool1", 2, 2, 2, true],
+
+    [ Conv2d, "pool1",   null, "conv2_1", 128, 3, 3, 1, true, true ],
+    [ Conv2d, "conv2_1", null, "conv2_2", 128, 3, 3, 1, true, true ],
+    [ Pool2d, "conv2_2", null, "pool2", 2, 2, 2, true],
+
+    [ Conv2d, "pool2",   null, "conv3_1", 256, 3, 3, 1, true, true ],
+    [ Conv2d, "conv3_1", null, "conv3_2", 256, 3, 3, 1, true, true ],
+    [ Conv2d, "conv3_2", null, "conv3_3", 256, 3, 3, 1, true, true ],
+    [ Pool2d, "conv3_3", null, "pool3", 2, 2, 2, true],
+
+    [ Conv2d, "pool3",   null, "conv4_1", 512, 3, 3, 1, true, true ],
+    [ Conv2d, "conv4_1", null, "conv4_2", 512, 3, 3, 1, true, true ],
+    [ Conv2d, "conv4_2", null, "conv4_3", 512, 3, 3, 1, true, true ],
+    [ Pool2d, "conv4_3", null, "pool4", 2, 2, 2, true],
+
+    [ Conv2d, "pool4",   null, "conv5_1", 512, 3, 3, 1, true, true ],
+    [ Conv2d, "conv5_1", null, "conv5_2", 512, 3, 3, 1, true, true ],
+    [ Conv2d, "conv5_2", null, "conv5_3", 512, 3, 3, 1, true, true ],
+    [ Pool2d, "conv5_3", null, "pool5", 2, 2, 2, true],
+
+    [ FullyConnected, "pool5", null, "FC1", 4096],
+    [ FullyConnected, "FC1",   null, "FC2", 4096],
+    [ FullyConnected, "FC2",   null, "FC3", 1000]
+];

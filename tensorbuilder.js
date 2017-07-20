@@ -1,6 +1,14 @@
 
 var image_collection = {
-    collection : []
+    collection : [],
+    push : function(name) {
+        for (var i = 0; i < this.collection.length; i ++) {
+            if (this.collection[i] === name)
+                break;
+        }
+        if (i == this.collection.length)
+            this.collection.push(name);
+    }
 }
 
 var component = {
@@ -8,7 +16,7 @@ var component = {
     collection:        {},
     __image__  : [],
     set imagename(name) {
-        image_collection.collection.push(name);
+        image_collection.push(name);
         this.__image__ = name;
     },
     get imagename() {
@@ -318,6 +326,10 @@ function setup() {
     var height_input = Object.create(number_input);
     height_input.init(stage, 32, 0, 0, 999);
     height_input.container.x = 200;
+    height_input.container.rotation = Math.PI / 2;
+
+    rbox.init(stage, 1, 64);
+    rbox.container.y = 64;
 
     networklayers = new PIXI.Container();
     layers = draw_network(networklayers, network_desc);
@@ -409,7 +421,7 @@ function update() {
 var ui_images = {
     __image__  : [],
     set imagename(name) {
-        image_collection.collection.push(name);
+        image_collection.push(name);
         this.__image__ = name;
     },
     get imagename() {
@@ -430,9 +442,43 @@ function register_event(obj, par, _start, _end, parameter) {
     obj.interactive = true;
 }
 
+var radio_box = Object.create(ui_images);
+radio_box.init = function(stage, def, size) {
+    const dark = 0.2, bright = 1.0;
+    var start = function(e, p) {
+        this.select = p;
+        for (var i = 0; i < this.imagename.length; i ++) {
+            var pic = this.sprites[i];
+            if (i != p)
+                pic.alpha = dark;
+            else
+                pic.alpha = bright;
+        }
+    }
+    var end = function (e, p) { }
+    this.select = def;
+    this.container = new PIXI.Container();
+    this.sprites = [];
+    for (var i = 0; i < this.imagename.length; i ++) {
+        var name = this.imagename[i];
+        var pic = new PIXI.Sprite(PIXI.loader.resources[name].texture);
+        pic.alpha = dark;
+        if (i == this.select)
+            pic.alpha = bright;
+        pic.interactive = true;
+        register_event(pic, this, start, end, i);
+        this.sprites.push(pic);
+        pic.width = size;
+        pic.height = size;
+        pic.x = i * size;
+        this.container.addChild(pic);
+    }
+    stage.addChild(this.container);
+}
+
 var number_input = Object.create(ui_images);
 number_input.imagename = ['left.png', 'right.png'];
-number_input.init = function (parent, height, initial_value, low, high) {
+number_input.init = function(parent, height, initial_value, low, high) {
     if (low > high)
         low = high;
     var ndigit = 0;
@@ -508,6 +554,9 @@ number_input.init = function (parent, height, initial_value, low, high) {
 
     parent.addChild(this.container);
 }
+
+var rbox = Object.create(radio_box);
+rbox.imagename = ["linear.png", "non-linear.png"];
 
 var renderer = PIXI.autoDetectRenderer();
 

@@ -59,7 +59,7 @@ var component = {
     }
 }
 
-function label(doc, container) {
+function label(doc, container, x, y) {
     var text = new PIXI.Text(doc,
         {fontFamily: 'Arial', fontSize: 12, fill: 0xffffff, align : 'center'});
     text.visible = false;
@@ -67,10 +67,6 @@ function label(doc, container) {
     var lx = 0, ly = 0;
     for (var i = 0; i < children.length; i ++) {
         var c = children[i];
-        if (c.x > lx)
-            lx = c.x;
-        if (c.y + c.height > ly)
-            ly = c.y + c.height;
         c.mouseover = function (data) {
             text.visible = true;
         }
@@ -78,8 +74,8 @@ function label(doc, container) {
             text.visible = false;
         }
     }
-    text.x = lx;
-    text.y = ly;
+    text.x = x;
+    text.y = y;
 
     container.addChild(text);
 }
@@ -97,27 +93,27 @@ FullyConnected.init = function(pred, name, size) {
 }
 FullyConnected.draw = function (stage, ratio, maxw, maxh) {
     var size = this.output_dim[0];
-    var radius = 4;
+    var radius = 8;
     var w = Math.floor(radius * 2 * ratio);
     var h = Math.floor(radius * 2 * ratio);
 
     stride = 1;
     var x = 0, y = 0;
     for (var i = 0; i < size; i ++) {
-        var circle = new PIXI.Graphics();
-        circle.beginFill(0x000000);
-        circle.lineStyle(1, 0xffffff, 1);
-        circle.drawRect(x, y, radius, radius);
-        circle.endFill();
-        stage.addChild(circle);
-        circle.interactive = true;
-        circle.hitArea = new PIXI.Rectangle(x, y, radius, radius);
+        var rect = new PIXI.Graphics();
+        rect.beginFill(0x000000);
+        rect.lineStyle(1, 0xffffff, 1);
+        rect.drawRect(x, y, radius, radius);
+        rect.endFill();
+        rect.interactive = true;
+        rect.hitArea = new PIXI.Rectangle(x, y, radius, radius);
+        stage.addChild(rect);
         x += stride;
         y += stride;
         if (x >= maxw || y >= maxh)
             break;
     }
-    label(this.doc(), stage);
+    label(this.doc(), stage, x, y + radius);
 }
 
 var component3D = Object.create(component);
@@ -139,7 +135,7 @@ component3D.draw = function(stage, ratio, maxw, maxh) {
     if (stride > w / 2)
         stride = Math.floor(w / 2)
     var x = 0, y = 0;
-    var l = (channels > 32 ? 32 : channels);
+    var l = channels;
     var last_frame = false;
     var i = 0;
     w = Math.floor(w);
@@ -170,7 +166,7 @@ component3D.draw = function(stage, ratio, maxw, maxh) {
         x = next_x;
         y = next_y;
     }
-    label(this.doc(), stage);
+    label(this.doc(), stage, x, y + h);
 }
 
 var Input = Object.create(component3D);

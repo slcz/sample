@@ -79,6 +79,7 @@ function label(doc, container) {
 }
 
 var FullyConnected = Object.create(component);
+FullyConnected.imagename = ['fc.png'];
 FullyConnected.type = "Fully Connected Layer";
 FullyConnected.init = function(pred, name, size) {
     this.link(pred, name);
@@ -328,8 +329,11 @@ function setup() {
     height_input.container.x = 200;
     height_input.container.rotation = Math.PI / 2;
 
-    rbox.init(stage, 1, 64);
-    rbox.container.y = 64;
+    rbox1.init(stage, 2, 64);
+    rbox1.container.y = 128;
+
+    rbox2.init(stage, 0, 64);
+    rbox2.container.y = 256;
 
     networklayers = new PIXI.Container();
     layers = draw_network(networklayers, network_desc);
@@ -555,8 +559,10 @@ number_input.init = function(parent, height, initial_value, low, high) {
     parent.addChild(this.container);
 }
 
-var rbox = Object.create(radio_box);
-rbox.imagename = ["linear.png", "non-linear.png"];
+var rbox1 = Object.create(radio_box);
+rbox1.imagename = ["linear.png", "sigmoid.png", "relu.png"];
+var rbox2 = Object.create(radio_box);
+rbox2.imagename = ["same.png", "valid.png"];
 
 var renderer = PIXI.autoDetectRenderer();
 

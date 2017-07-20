@@ -2,12 +2,18 @@
 var image_collection = {
     collection : [],
     push : function(name) {
-        for (var i = 0; i < this.collection.length; i ++) {
-            if (this.collection[i] === name)
-                break;
+        for (var j = 0; j < name.length; j ++) {
+            var n = name[j];
+            var index = -1;
+            for (var i = 0; i < this.collection.length; i ++) {
+                if (this.collection[i] === n) {
+                    index = i;
+                    break;
+                }
+            }
+            if (index == -1)
+                this.collection.push(n);
         }
-        if (i == this.collection.length)
-            this.collection.push(name);
     }
 }
 
@@ -320,6 +326,7 @@ function draw_network(stage, desc) {
 function setup() {
     var networklayers;
 
+
     var width_input = Object.create(number_input);
     width_input.init(stage, 32, 0, 0, 9999);
     width_input.container.x = 0;
@@ -334,6 +341,9 @@ function setup() {
 
     rbox2.init(stage, 0, 64);
     rbox2.container.y = 256;
+
+    component_select.init(stage, 256);
+    component_select.container.x = 512;
 
     networklayers = new PIXI.Container();
     layers = draw_network(networklayers, network_desc);
@@ -480,6 +490,62 @@ radio_box.init = function(stage, def, size) {
     stage.addChild(this.container);
 }
 
+var select_wheel = Object.create(ui_images);
+select_wheel.components = [];
+select_wheel.init = function(parent, size) {
+    this.imagename = this.components.reduce(function (sum, x) { return sum.concat(x.imagename); }, ['left.png', 'right.png']);
+    this.sel = 0;
+    this.container = new PIXI.Container();
+    this.win = new PIXI.Container();
+    this.nr_sels = this.imagename.length - 2;
+    this.images = [];
+    for (var i = 2; i < this.imagename.length; i ++) {
+        var name = this.imagename[i];
+        image = new PIXI.Sprite(PIXI.loader.resources[this.imagename[i]].texture);
+        image.width = size;
+        image.height = size;
+        this.win.addChild(image);
+        this.images.push(image);
+        if (this.sel == i - 2)
+            this.visible = true;
+        else
+            this.visible = true;
+    }
+    this.win.width = this.win.height = size;
+
+    this.buttonsize = Math.floor(size / 4);
+    this.win.x = this.buttonsize;
+
+    this.leftbutton  = new PIXI.Sprite(PIXI.loader.resources[this.imagename[0]].texture);
+    this.rightbutton = new PIXI.Sprite(PIXI.loader.resources[this.imagename[1]].texture);
+    this.leftbutton.width = this.rightbutton.width = this.leftbutton.height = this.rightbutton.height = this.buttonsize;
+    this.leftbutton.x = 0;
+    this.rightbutton.x = this.leftbutton.width + this.win.width;
+    this.leftbutton.y = this.rightbutton.y = Math.floor((size - this.buttonsize) / 2);
+
+    this.container.addChild(this.leftbutton);
+    this.container.addChild(this.rightbutton);
+    this.container.addChild(this.win);
+    this.container.width = size + 2 * this.buttonsize;
+    this.container.height = size;
+    parent.addChild(this.container);
+
+    function buttonstart (e, p) {
+        this.sel += p;
+        if (this.sel < 0)
+            this.sel = this.nr_sels - 1;
+        if (this.sel >= this.nr_sels)
+            this.sel = 0;
+        for (var i = 0; i < this.images.length; i ++)
+            this.images[i].visible = this.sel == i ? true : false;
+    }
+
+    function buttonend (e, p) { }
+
+    register_event(this.leftbutton,  this, buttonstart, buttonend, -1);
+    register_event(this.rightbutton, this, buttonstart, buttonend,  1);
+}
+
 var number_input = Object.create(ui_images);
 number_input.imagename = ['left.png', 'right.png'];
 number_input.init = function(parent, height, initial_value, low, high) {
@@ -563,6 +629,8 @@ var rbox1 = Object.create(radio_box);
 rbox1.imagename = ["linear.png", "sigmoid.png", "relu.png"];
 var rbox2 = Object.create(radio_box);
 rbox2.imagename = ["same.png", "valid.png"];
+var component_select = Object.create(select_wheel);
+component_select.components = [Pool2d, Input, FullyConnected, Conv2d];
 
 var renderer = PIXI.autoDetectRenderer();
 

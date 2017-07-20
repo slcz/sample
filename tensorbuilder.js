@@ -52,6 +52,15 @@ var component = {
             else
                 doc += "\n";
         }
+        for (var i = 0; i < this.output_dim.length; i ++) {
+            if (i == 0)
+                doc += "Output size: ";
+            doc += this.output_dim[i];
+            if (i < this.output_dim.length - 1)
+                doc += " x ";
+            else
+                doc += "\n";
+        }
         return doc;
     },
     doc : function () {
@@ -93,13 +102,14 @@ FullyConnected.init = function(pred, name, size) {
 }
 FullyConnected.draw = function (stage, ratio, maxw, maxh) {
     var size = this.output_dim[0];
+    var l = Math.floor(Math.log(size)) * 16 + 1;
     var radius = 8;
     var w = Math.floor(radius * 2 * ratio);
     var h = Math.floor(radius * 2 * ratio);
 
     stride = 1;
     var x = 0, y = 0;
-    for (var i = 0; i < size; i ++) {
+    for (var i = 0; i < l; i ++) {
         var rect = new PIXI.Graphics();
         rect.beginFill(0x000000);
         rect.lineStyle(1, 0xffffff, 1);
@@ -129,13 +139,9 @@ component3D.draw = function(stage, ratio, maxw, maxh) {
     w = w < 4 ? 4 : w;
     h = h < 4 ? 4 : h;
 
-    var stride = Math.floor((maxw - w) / channels);
-    if (stride <= 1)
-        stride = 2;
-    if (stride > w / 2)
-        stride = Math.floor(w / 2)
+    var l = channels < 8 ? channels : Math.floor(Math.log(channels - 8)) * 4 + 8;
+    var stride = 4;
     var x = 0, y = 0;
-    var l = channels;
     var last_frame = false;
     var i = 0;
     w = Math.floor(w);
@@ -165,6 +171,7 @@ component3D.draw = function(stage, ratio, maxw, maxh) {
         stage.addChild(g);
         x = next_x;
         y = next_y;
+        i = i + 1;
     }
     label(this.doc(), stage, x, y + h);
 }
@@ -285,7 +292,7 @@ function draw_network(stage, desc) {
     var ratiow, ratioh, ratio;
 
     ratio = (layerh * 0.3) / max_height;
-    layerw = Math.floor(max_width / 0.8 * ratio);
+    layerw = Math.floor(max_width / 0.5 * ratio);
 
     var x = 0, y = 0;
 
@@ -322,6 +329,9 @@ function draw_network(stage, desc) {
 function setup() {
     var networklayers;
 
+    plus_minus_buttons.init(stage, 64);
+    plus_minus_buttons.container.x = 0;
+    plus_minus_buttons.container.y = 512;
 
     var width_input = Object.create(number_input);
     width_input.init(stage, 32, 0, 0, 9999);
@@ -619,6 +629,38 @@ number_input.init = function(parent, height, initial_value, low, high) {
     register_event(this.rightbutton, this, buttonstart, buttonend,  1);
 
     parent.addChild(this.container);
+}
+
+var plus_minus_buttons = Object.create(ui_images);
+plus_minus_buttons.imagename = ['plus.png', 'minus.png'];
+plus_minus_buttons.init = function (parent, size) {
+    var plusbutton = new PIXI.Sprite(PIXI.loader.resources[this.imagename[0]].texture);
+    var minusbutton = new PIXI.Sprite(PIXI.loader.resources[this.imagename[1]].texture);
+    plusbutton.width = plusbutton.height = size;
+    minusbutton.width = minusbutton.height = size;
+    plusbutton.y  = 0;
+    minusbutton.y = size;
+    this.container = new PIXI.Container();
+    this.container.addChild(plusbutton);
+    this.container.addChild(minusbutton);
+
+    plusbutton.interactive = true;
+    minusbutton.interactive = true;
+
+    register_event(plusbutton,  this, buttonstart, buttonend,  1);
+    register_event(minusbutton, this, buttonstart, buttonend, -1);
+
+    stage.addChild(this.container);
+
+    function buttonstart (e, p) {
+        if (p > 0) {
+            console.log("PLUS BUTTON PRESSED");
+        } else {
+            console.log("MINUS BUTTON PRESSED");
+        }
+    }
+
+    function buttonend (e, p) {}
 }
 
 var rbox1 = Object.create(radio_box);

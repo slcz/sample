@@ -17,10 +17,10 @@ const network_height_ratio = 0.3;
 var image_collection = {
     collection : [],
     push : function(name) {
-        for (var j = 0; j < name.length; j ++) {
-            var n = name[j];
-            var index = -1;
-            for (var i = 0; i < this.collection.length; i ++) {
+        for (let j = 0; j < name.length; j ++) {
+            let n = name[j];
+            let index = -1;
+            for (let i = 0; i < this.collection.length; i ++) {
                 if (this.collection[i] === n) {
                     index = i;
                     break;
@@ -56,9 +56,9 @@ var component = {
         component.collection[name] = this;
     },
     header : function () {
-        var doc;
+        let doc;
         doc = this.type + " " + this.name + "\n";
-        for (var i = 0; i < this.input_dim.length; i ++) {
+        for (let i = 0; i < this.input_dim.length; i ++) {
             if (i == 0)
                 doc += "Input size: ";
             doc += this.input_dim[i];
@@ -67,7 +67,7 @@ var component = {
             else
                 doc += "\n";
         }
-        for (var i = 0; i < this.output_dim.length; i ++) {
+        for (let i = 0; i < this.output_dim.length; i ++) {
             if (i == 0)
                 doc += "Output size: ";
             doc += this.output_dim[i];
@@ -84,13 +84,13 @@ var component = {
 }
 
 function label(doc, container, x, y) {
-    var text = new PIXI.Text(doc,
+    let text = new PIXI.Text(doc,
         {fontFamily: 'Arial', fontSize: 12, fill: 0xffffff, align : 'center'});
     text.visible = false;
-    var children = container.children;
-    var lx = 0, ly = 0;
-    for (var i = 0; i < children.length; i ++) {
-        var c = children[i];
+    let children = container.children;
+    let lx = 0, ly = 0;
+    for (let i = 0; i < children.length; i ++) {
+        let c = children[i];
         c.mouseover = function (data) {
             text.visible = true;
         }
@@ -109,22 +109,22 @@ FullyConnected.imagename = ['fc.png'];
 FullyConnected.type = "Fully Connected Layer";
 FullyConnected.init = function(pred, name, size) {
     this.link(pred, name);
-    var all = 1;
-    for (var i = 0; i < pred.output_dim.length; i ++)
+    let all = 1;
+    for (let i = 0; i < pred.output_dim.length; i ++)
         all *= pred.output_dim[i];
     this.input_dim  = [all];
     this.output_dim = [size];
 }
 FullyConnected.draw = function (stage, ratio, maxw, maxh) {
-    var size = this.output_dim[0];
-    var l = Math.floor(Math.log(size)) * 16 + 1;
-    var w = Math.floor(fc_radius * 2 * ratio);
-    var h = Math.floor(fc_radius * 2 * ratio);
+    let size = this.output_dim[0];
+    let l = Math.floor(Math.log(size)) * 16 + 1;
+    let w = Math.floor(fc_radius * 2 * ratio);
+    let h = Math.floor(fc_radius * 2 * ratio);
 
+    let x = 0, y = 0;
     stride = 1;
-    var x = 0, y = 0;
-    for (var i = 0; i < l; i ++) {
-        var rect = new PIXI.Graphics();
+    for (let i = 0; i < l; i ++) {
+        let rect = new PIXI.Graphics();
         rect.beginFill(0x000000);
         rect.lineStyle(1, 0xffffff, 1);
         rect.drawRect(x, y, fc_radius, fc_radius);
@@ -144,29 +144,29 @@ var component3D = Object.create(component);
 component3D.type = "3D";
 component3D.imagename = [];
 component3D.draw = function(stage, ratio, maxw, maxh) {
-    var width    = this.output_dim[0];
-    var height   = this.output_dim[1];
-    var channels = this.output_dim[2];
-    var w = Math.floor(width  * ratio);
-    var h = Math.floor(height * ratio);
+    let width    = this.output_dim[0];
+    let height   = this.output_dim[1];
+    let channels = this.output_dim[2];
+    let w = Math.floor(width  * ratio);
+    let h = Math.floor(height * ratio);
 
     w = w < minsize ? minsize : w;
     h = h < minsize ? minsize : h;
 
-    var l = channels < 8 ? channels : Math.floor(Math.log(channels - 8)) * 4 + 8;
-    var stride = default_stride;
-    var x = 0, y = 0;
-    var last_frame = false;
-    var i = 0;
+    let l = channels < 8 ? channels : Math.floor(Math.log(channels - 8)) * 4 + 8;
+    let stride = default_stride;
+    let x = 0, y = 0;
+    let last_frame = false;
+    let i = 0;
     w = Math.floor(w);
     h = Math.floor(h);
     while (last_frame == false) {
         if (i == l - 1)
             last_frame = true;
-        var next_x = x + stride, next_y = y + stride;
+        let next_x = x + stride, next_y = y + stride;
         if (next_x + w >= maxw || next_y + h >= maxh)
             last_frame = true;
-        var g;
+        let g;
         if (last_frame == false) {
             g = new PIXI.Graphics();
             g.beginFill(0x808080);
@@ -208,12 +208,12 @@ Pool2d.init = function(pred, name, kernel_width, kernel_height, stride, padding_
     this.stride        = stride;
     this.padding_same  = padding_same;
     this.input_dim     = pred.output_dim;
-    var iw = this.input_dim[0];
-    var ih = this.input_dim[1];
-    var ic = this.input_dim[2];
+    let iw = this.input_dim[0];
+    let ih = this.input_dim[1];
+    let ic = this.input_dim[2];
 
-    var ow = iw;
-    var oh = ih;
+    let ow = iw;
+    let oh = ih;
 
     if (this.padding_same == false) {
         ow -= this.kernel_width - 1;
@@ -224,7 +224,7 @@ Pool2d.init = function(pred, name, kernel_width, kernel_height, stride, padding_
     this.output_dim    = [ow, oh, ic];
 }
 Pool2d.doc = function() {
-    var doc = this.header();
+    let doc = this.header();
     doc += "Kernel: ";
     doc += this.kernel_width + " x " + this.kernel_height + "\n";
     doc += "*Stride: " + this.stride;
@@ -244,12 +244,12 @@ Conv2d.init = function (pred, name, channels, kernel_width, kernel_height, strid
     this.padding_same  = padding_same;
     this.activation    = activation;
     this.input_dim     = pred.output_dim;
-    var iw = this.input_dim[0];
-    var ih = this.input_dim[1];
-    var ic = this.input_dim[2];
+    let iw = this.input_dim[0];
+    let ih = this.input_dim[1];
+    let ic = this.input_dim[2];
 
-    var ow = iw;
-    var oh = ih;
+    let ow = iw;
+    let oh = ih;
 
     if (this.padding_same == false) {
         ow -= this.kernel_width - 1;
@@ -260,7 +260,7 @@ Conv2d.init = function (pred, name, channels, kernel_width, kernel_height, strid
     this.output_dim    = [ow, oh, this.channels];
 }
 Conv2d.doc = function() {
-    var doc = this.header();
+    let doc = this.header();
 
     doc += "Kernel: ";
     doc += this.kernel_width + " x " + this.kernel_height + " x " + this.channels + "\n";
@@ -271,23 +271,23 @@ Conv2d.doc = function() {
 }
 
 function draw_network(stage, desc, canvasw, canvash) {
-    for (var i = 0; i < desc.length; i ++) {
-        var e     = desc[i];
-        var proto = e[0];
-        var pred_name = e[1];
+    for (let i = 0; i < desc.length; i ++) {
+        let e     = desc[i];
+        let proto = e[0];
+        let pred_name = e[1];
         if (pred_name != null)
             e[2] = component.collection[pred_name];
         else
             e[2] = null;
-        var obj = Object.create(proto);
+        let obj = Object.create(proto);
         obj.init.apply(obj, e.slice(2, e.length));
     }
 
-    var nlayers = desc.length;
-    var layerw = Math.floor(canvasw / nlayers), layerh = Math.floor(canvash);
+    let nlayers = desc.length;
+    let layerw = Math.floor(canvasw / nlayers), layerh = Math.floor(canvash);
 
-    var max_width = 0, max_height = 0;
-    var node = component.collection["input"];
+    let max_width = 0, max_height = 0;
+    let node = component.collection["input"];
     while (node != null) {
         if (node.output_dim.length > 1) {
             if (node.output_dim[0] > max_width)
@@ -299,21 +299,21 @@ function draw_network(stage, desc, canvasw, canvash) {
         node = node.succ;
     }
 
-    var ratiow, ratioh, ratio;
+    let ratiow, ratioh, ratio;
 
     ratio = (layerh * network_height_ratio) / max_height;
     layerw = Math.floor(max_width / network_depth_ratio * ratio);
 
-    var x = 0, y = 0;
+    let x = 0, y = 0;
 
-    var layers = [];
+    let layers = [];
 
-    var max_height = 0;
+    max_height = 0;
 
-    var node = component.collection["input"];
+    node = component.collection["input"];
     while (node != null) {
-        var maxw = layerw, maxh = layerh;
-        var layer;
+        let maxw = layerw, maxh = layerh;
+        let layer;
         layer = new PIXI.Container();
 
         node.draw(layer, ratio, maxw, maxh);
@@ -328,8 +328,8 @@ function draw_network(stage, desc, canvasw, canvash) {
         node = node.succ;
     }
 
-    for (var i = 0; i < layers.length; i ++) {
-        var layer = layers[i];
+    for (let i = 0; i < layers.length; i ++) {
+        let layer = layers[i];
         layer.y   = max_height - layer.height;
     }
 
@@ -339,15 +339,15 @@ function draw_network(stage, desc, canvasw, canvash) {
 var timer_queue = {
     queue: [],
     add : function(f, o) {
-        var q = Object.create(null);
+        let q = Object.create(null);
         q.f = f;
         q.o = o;
         this.queue.push(q);
     },
     remove : function(f, o) {
-        var index = -1;
-        for (var i = 0; i < this.queue.length; i ++) {
-            var q = this.queue[i];
+        let index = -1;
+        for (let i = 0; i < this.queue.length; i ++) {
+            let q = this.queue[i];
             if (q.f == f && q.o == o) {
                 index = i;
                 break;
@@ -370,8 +370,8 @@ var ui_images = {
 }
 
 function register_event(obj, par, _start, _end, parameter) {
-    var start = function (e) { _start.call(par, e, parameter); }
-    var end   = function (e) { _end.call(par, e, parameter); }
+    let start = function (e) { _start.call(par, e, parameter); }
+    let end   = function (e) { _end.call(par, e, parameter); }
     obj
         .on('mousedown', start)
         .on('touchstart', start)
@@ -385,23 +385,23 @@ function register_event(obj, par, _start, _end, parameter) {
 var radio_box = Object.create(ui_images);
 radio_box.init = function(stage, def, size) {
     const dark = 0.2, bright = 1.0;
-    var start = function(e, p) {
+    let start = function(e, p) {
         this.select = p;
-        for (var i = 0; i < this.imagename.length; i ++) {
-            var pic = this.sprites[i];
+        for (let i = 0; i < this.imagename.length; i ++) {
+            let pic = this.sprites[i];
             if (i != p)
                 pic.alpha = dark;
             else
                 pic.alpha = bright;
         }
     }
-    var end = function (e, p) { }
+    let end = function (e, p) { }
     this.select = def;
     this.container = new PIXI.Container();
     this.sprites = [];
-    for (var i = 0; i < this.imagename.length; i ++) {
-        var name = this.imagename[i];
-        var pic = new PIXI.Sprite(PIXI.loader.resources[name].texture);
+    for (let i = 0; i < this.imagename.length; i ++) {
+        let name = this.imagename[i];
+        let pic = new PIXI.Sprite(PIXI.loader.resources[name].texture);
         pic.alpha = dark;
         if (i == this.select)
             pic.alpha = bright;
@@ -425,8 +425,8 @@ select_wheel.init = function(parent, size) {
     this.win = new PIXI.Container();
     this.nr_sels = this.imagename.length - 2;
     this.images = [];
-    for (var i = 2; i < this.imagename.length; i ++) {
-        var name = this.imagename[i];
+    for (let i = 2; i < this.imagename.length; i ++) {
+        let name = this.imagename[i];
         image = new PIXI.Sprite(PIXI.loader.resources[this.imagename[i]].texture);
         image.width = size;
         image.height = size;
@@ -462,7 +462,7 @@ select_wheel.init = function(parent, size) {
             this.sel = this.nr_sels - 1;
         if (this.sel >= this.nr_sels)
             this.sel = 0;
-        for (var i = 0; i < this.images.length; i ++)
+        for (let i = 0; i < this.images.length; i ++)
             this.images[i].visible = this.sel == i ? true : false;
     }
 
@@ -477,8 +477,8 @@ number_input.imagename = ['left.png', 'right.png'];
 number_input.init = function(parent, height, initial_value, low, high) {
     if (low > high)
         low = high;
-    var ndigit = 0;
-    var tmp = high;
+    let ndigit = 0;
+    let tmp = high;
     while (tmp != 0) {
         ndigit ++;
         tmp = Math.floor(tmp / 10);
@@ -489,14 +489,14 @@ number_input.init = function(parent, height, initial_value, low, high) {
     this.ndigit = ndigit;
     this.height = height;
     this.container = new PIXI.Container();
-    var fontstyle = new PIXI.TextStyle( {
+    const fontstyle = new PIXI.TextStyle( {
         fontFamily: "Courier New",
         fontSize:  height,
         fontStyle: 'italic',
         fontWeight: 'bold',
         align: 'right',
         fill: 0xffffff });
-    var digits = ('0'.repeat(ndigit) + this.value).slice(-ndigit);
+    let digits = ('0'.repeat(ndigit) + this.value).slice(-ndigit);
     this.timeout = pooling_timeout;
     this.text = new PIXI.Text(digits, fontstyle);
     this.leftbutton  = new PIXI.Sprite(PIXI.loader.resources[this.imagename[0]].texture);
@@ -513,10 +513,10 @@ number_input.init = function(parent, height, initial_value, low, high) {
     this.timer_value = 0;
 
     function settext() {
-        var value = Math.floor(this.timer_value / this.timeout);
+        let value = Math.floor(this.timer_value / this.timeout);
         this.value += this.delta * value;
         this.value = this.value < this.low ? this.low : this.value > this.high ? this.high : this.value;
-        var digits = ('0'.repeat(this.ndigit) + this.value).slice(-this.ndigit);
+        let digits = ('0'.repeat(this.ndigit) + this.value).slice(-this.ndigit);
         this.text.text = digits;
     }
 
@@ -553,9 +553,9 @@ number_input.init = function(parent, height, initial_value, low, high) {
 var buttons = Object.create(ui_images);
 buttons.imagename = ['plus.jpg', 'minus.jpg', 'ok.jpg'];
 buttons.init = function (parent, size) {
-    var plusbutton = new PIXI.Sprite(PIXI.loader.resources[this.imagename[0]].texture);
-    var minusbutton = new PIXI.Sprite(PIXI.loader.resources[this.imagename[1]].texture);
-    var okbutton = new PIXI.Sprite(PIXI.loader.resources[this.imagename[2]].texture);
+    let plusbutton = new PIXI.Sprite(PIXI.loader.resources[this.imagename[0]].texture);
+    let minusbutton = new PIXI.Sprite(PIXI.loader.resources[this.imagename[1]].texture);
+    let okbutton = new PIXI.Sprite(PIXI.loader.resources[this.imagename[2]].texture);
     plusbutton.width = plusbutton.height = size;
     minusbutton.width = minusbutton.height = size;
     okbutton.width = okbutton.height = size;
@@ -595,30 +595,30 @@ buttons.init = function (parent, size) {
 }
 
 function setdrag(stage) {
-    var mousex, mousey;
-    var data;
-    var dragging;
+    let mousex, mousey;
+    let data;
+    let dragging;
 
     stage.interactive = true;
     stage.hitArea = new PIXI.Rectangle(stage.x, stage.y, stage.width, stage.height);
-    var ondragstart = function(event) {
+    let ondragstart = function(event) {
         data = event.data;
         mousex = data.global.x;
         mousey = data.global.y;
         dragging = true;
     };
 
-    var ondragend = function(event) {
+    let ondragend = function(event) {
         dragging = false;
         data = null;
     };
 
-    var ondragmove = function(event) {
+    let ondragmove = function(event) {
         if (dragging) {
-            var newx = data.global.x;
-            var newy = data.global.y;
-            var deltax = newx - mousex;
-            var deltay = newy - mousey;
+            let newx = data.global.x;
+            let newy = data.global.y;
+            let deltax = newx - mousex;
+            let deltay = newy - mousey;
             mousex = newx;
             mousey = newy;
             stage.x = stage.x + deltax;
@@ -638,14 +638,14 @@ function setdrag(stage) {
 }
 
 (function() {
-    var rbox1 = Object.create(radio_box);
+    let rbox1 = Object.create(radio_box);
     rbox1.imagename = ["linear.png", "sigmoid.png", "relu.png"];
-    var rbox2 = Object.create(radio_box);
+    let rbox2 = Object.create(radio_box);
     rbox2.imagename = ["same.png", "valid.png"];
-    var component_select = Object.create(select_wheel);
+    let component_select = Object.create(select_wheel);
     component_select.components = [Pool2d, Input, FullyConnected, Conv2d];
 
-    var renderer = PIXI.autoDetectRenderer();
+    let renderer = PIXI.autoDetectRenderer();
 
     renderer.view.style.position = "absolute";
     renderer.view.style.display = "block";
@@ -654,7 +654,7 @@ function setdrag(stage) {
 
     document.body.appendChild(renderer.view);
 
-    var stage = new PIXI.Container();
+    let stage = new PIXI.Container();
 
     renderer.backgroundColor = 0x000000;
 
@@ -663,8 +663,8 @@ function setdrag(stage) {
     function update() {
         requestAnimationFrame(update);
 
-        for (var i = 0; i < timer_queue.queue.length; i ++) {
-            var q = timer_queue.queue[i];
+        for (let i = 0; i < timer_queue.queue.length; i ++) {
+            let q = timer_queue.queue[i];
             q.f.call(q.o);
         }
 
@@ -672,10 +672,10 @@ function setdrag(stage) {
     }
 
     function setup() {
-        var canvasw = window.innerWidth, canvash = window.innerHeight;
-        var networklayers, controllayers;
+        let canvasw = window.innerWidth, canvash = window.innerHeight;
+        let networklayers, controllayers;
 
-        var gadgets = [];
+        let gadgets = [];
 
         controllayers = new PIXI.Container();
         buttons.init(controllayers, button_size);
@@ -684,15 +684,15 @@ function setdrag(stage) {
         component_select.init(controllayers, component_select_size);
         gadgets.push(component_select.container);
 
-        var width_input = Object.create(number_input);
+        let width_input = Object.create(number_input);
         width_input.init(controllayers, number_input_size, 0, 0, 9999);
         gadgets.push(width_input.container);
 
-        var height_input = Object.create(number_input);
+        let height_input = Object.create(number_input);
         height_input.init(controllayers, number_input_size, 0, 0, 9999);
         gadgets.push(height_input.container);
 
-        var channel_input = Object.create(number_input);
+        let channel_input = Object.create(number_input);
         channel_input.init(controllayers, number_input_size, 0, 0, 9999);
         gadgets.push(channel_input.container);
 
@@ -702,23 +702,23 @@ function setdrag(stage) {
         rbox2.init(controllayers, 0, radio_box_size);
         gadgets.push(rbox2.container);
 
-        var w = 0, h = 0;
-        for (var i = 0; i < gadgets.length; i ++) {
-            var gadget = gadgets[i];
+        let w = 0, h = 0;
+        for (let i = 0; i < gadgets.length; i ++) {
+            let gadget = gadgets[i];
             w += gadget.width + gap;
             if (gadget.height > h)
                 h = gadget.height;
         }
         w += gap;
 
-        var width = canvasw, height = Math.floor(canvash * (1.0 - network_layer_scale));
-        var ratio = 1.0;
+        let width = canvasw, height = Math.floor(canvash * (1.0 - network_layer_scale));
+        let ratio = 1.0;
         if (w > width)
             ratio = width / w;
 
-        var offset = 0;
-        for (var i = 0; i < gadgets.length; i ++) {
-            var gadget = gadgets[i];
+        let offset = 0;
+        for (let i = 0; i < gadgets.length; i ++) {
+            let gadget = gadgets[i];
             offset += gap;
             gadget.x = offset;
             gadget.y = Math.floor(h - gadget.height / 2);

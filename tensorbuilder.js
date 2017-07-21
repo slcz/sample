@@ -7,6 +7,12 @@ const component_select_size = 3 * control_unit;
 const number_input_size = control_unit;
 const button_size = control_unit;
 const pooling_timeout = 10;
+const gap = 2 * control_unit;
+const fc_radius = 8;
+const minsize = 4;
+const default_stride = 4;
+const network_depth_ratio = 0.5;
+const network_height_ratio = 0.3;
 
 var image_collection = {
     collection : [],
@@ -112,9 +118,8 @@ FullyConnected.init = function(pred, name, size) {
 FullyConnected.draw = function (stage, ratio, maxw, maxh) {
     var size = this.output_dim[0];
     var l = Math.floor(Math.log(size)) * 16 + 1;
-    var radius = 8;
-    var w = Math.floor(radius * 2 * ratio);
-    var h = Math.floor(radius * 2 * ratio);
+    var w = Math.floor(fc_radius * 2 * ratio);
+    var h = Math.floor(fc_radius * 2 * ratio);
 
     stride = 1;
     var x = 0, y = 0;
@@ -122,17 +127,17 @@ FullyConnected.draw = function (stage, ratio, maxw, maxh) {
         var rect = new PIXI.Graphics();
         rect.beginFill(0x000000);
         rect.lineStyle(1, 0xffffff, 1);
-        rect.drawRect(x, y, radius, radius);
+        rect.drawRect(x, y, fc_radius, fc_radius);
         rect.endFill();
         rect.interactive = true;
-        rect.hitArea = new PIXI.Rectangle(x, y, radius, radius);
+        rect.hitArea = new PIXI.Rectangle(x, y, fc_radius, fc_radius);
         stage.addChild(rect);
         x += stride;
         y += stride;
         if (x >= maxw || y >= maxh)
             break;
     }
-    label(this.doc(), stage, x, y + radius);
+    label(this.doc(), stage, x, y + fc_radius);
 }
 
 var component3D = Object.create(component);
@@ -145,11 +150,11 @@ component3D.draw = function(stage, ratio, maxw, maxh) {
     var w = Math.floor(width  * ratio);
     var h = Math.floor(height * ratio);
 
-    w = w < 4 ? 4 : w;
-    h = h < 4 ? 4 : h;
+    w = w < minsize ? minsize : w;
+    h = h < minsize ? minsize : h;
 
     var l = channels < 8 ? channels : Math.floor(Math.log(channels - 8)) * 4 + 8;
-    var stride = 4;
+    var stride = default_stride;
     var x = 0, y = 0;
     var last_frame = false;
     var i = 0;
@@ -265,8 +270,6 @@ Conv2d.doc = function() {
     return doc;
 }
 
-const buttonwidth = 20;
-
 function draw_network(stage, desc, canvasw, canvash) {
     for (var i = 0; i < desc.length; i ++) {
         var e     = desc[i];
@@ -298,8 +301,8 @@ function draw_network(stage, desc, canvasw, canvash) {
 
     var ratiow, ratioh, ratio;
 
-    ratio = (layerh * 0.3) / max_height;
-    layerw = Math.floor(max_width / 0.5 * ratio);
+    ratio = (layerh * network_height_ratio) / max_height;
+    layerw = Math.floor(max_width / network_depth_ratio * ratio);
 
     var x = 0, y = 0;
 
@@ -309,7 +312,7 @@ function draw_network(stage, desc, canvasw, canvash) {
 
     var node = component.collection["input"];
     while (node != null) {
-        var maxw = Math.floor(layerw * 0.9), maxh = Math.floor(layerh * 0.9);
+        var maxw = layerw, maxh = layerh;
         var layer;
         layer = new PIXI.Container();
 
@@ -336,8 +339,6 @@ function draw_network(stage, desc, canvasw, canvash) {
 function setup() {
     var canvasw = window.innerWidth, canvash = window.innerHeight;
     var networklayers, controllayers;
-
-    var gap = 2 * control_unit;
 
     var gadgets = [];
 

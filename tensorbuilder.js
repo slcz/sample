@@ -1,4 +1,13 @@
 
+/* constant definition */
+const network_layer_scale = 0.6;
+const control_unit = 32;
+const radio_box_size = 2 * control_unit;
+const component_select_size = 3 * control_unit;
+const number_input_size = control_unit;
+const button_size = control_unit;
+const pooling_timeout = 10;
+
 var image_collection = {
     collection : [],
     push : function(name) {
@@ -258,9 +267,7 @@ Conv2d.doc = function() {
 
 const buttonwidth = 20;
 
-function draw_network(stage, desc) {
-    var canvasw = window.innerWidth, canvash = window.innerHeight;
-
+function draw_network(stage, desc, canvasw, canvash) {
     for (var i = 0; i < desc.length; i ++) {
         var e     = desc[i];
         var proto = e[0];
@@ -327,35 +334,74 @@ function draw_network(stage, desc) {
 }
 
 function setup() {
-    var networklayers;
+    var canvasw = window.innerWidth, canvash = window.innerHeight;
+    var networklayers, controllayers;
 
-    plus_minus_buttons.init(stage, 64);
-    plus_minus_buttons.container.x = 0;
-    plus_minus_buttons.container.y = 512;
+    var gap = 2 * control_unit;
+
+    var gadgets = [];
+
+    controllayers = new PIXI.Container();
+    buttons.init(controllayers, button_size);
+    gadgets.push(buttons.container);
+
+    component_select.init(controllayers, component_select_size);
+    gadgets.push(component_select.container);
 
     var width_input = Object.create(number_input);
-    width_input.init(stage, 32, 0, 0, 9999);
-    width_input.container.x = 0;
+    width_input.init(controllayers, number_input_size, 0, 0, 9999);
+    gadgets.push(width_input.container);
 
     var height_input = Object.create(number_input);
-    height_input.init(stage, 32, 0, 0, 999);
-    height_input.container.x = 200;
-    height_input.container.rotation = Math.PI / 2;
+    height_input.init(controllayers, number_input_size, 0, 0, 9999);
+    gadgets.push(height_input.container);
 
-    rbox1.init(stage, 2, 64);
-    rbox1.container.y = 128;
+    var channel_input = Object.create(number_input);
+    channel_input.init(controllayers, number_input_size, 0, 0, 9999);
+    gadgets.push(channel_input.container);
 
-    rbox2.init(stage, 0, 64);
-    rbox2.container.y = 256;
+    rbox1.init(controllayers, 2, radio_box_size);
+    gadgets.push(rbox1.container);
 
-    component_select.init(stage, 256);
-    component_select.container.x = 512;
+    rbox2.init(controllayers, 0, radio_box_size);
+    gadgets.push(rbox2.container);
 
+    var w = 0, h = 0;
+    for (var i = 0; i < gadgets.length; i ++) {
+        var gadget = gadgets[i];
+        w += gadget.width + gap;
+        if (gadget.height > h)
+            h = gadget.height;
+    }
+    w += gap;
+
+    var width = canvasw, height = Math.floor(canvash * (1.0 - network_layer_scale));
+    var ratio = 1.0;
+    if (w > width)
+        ratio = width / w;
+
+    var offset = 0;
+    for (var i = 0; i < gadgets.length; i ++) {
+        var gadget = gadgets[i];
+        offset += gap;
+        gadget.x = offset;
+        gadget.y = Math.floor(h - gadget.height / 2);
+        offset += gadget.width;
+    }
+
+    stage.addChild(controllayers);
+    controllayers.x = 0;
+    controllayers.y = height;
+    controllayers.scale.x = ratio;
+    controllayers.scale.y = ratio;
+
+    height = canvash * network_layer_scale;
     networklayers = new PIXI.Container();
-    layers = draw_network(networklayers, network_desc);
+    layers = draw_network(networklayers, network_desc, width, height);
     stage.addChild(networklayers);
+    networklayers.x = networklayers.y = 0;
+
     setdrag(networklayers);
-    networklayers.x = 0;
 
     renderer.render(stage);
 
@@ -577,7 +623,7 @@ number_input.init = function(parent, height, initial_value, low, high) {
         align: 'right',
         fill: 0xffffff });
     var digits = ('0'.repeat(ndigit) + this.value).slice(-ndigit);
-    this.timeout = 10;
+    this.timeout = pooling_timeout;
     this.text = new PIXI.Text(digits, fontstyle);
     this.leftbutton  = new PIXI.Sprite(PIXI.loader.resources[this.imagename[0]].texture);
     this.rightbutton = new PIXI.Sprite(PIXI.loader.resources[this.imagename[1]].texture);
@@ -604,7 +650,6 @@ number_input.init = function(parent, height, initial_value, low, high) {
         this.timer_value ++;
         if (this.timer_value % this.timeout == 0) {
             settext.call(this);
-            this.timeout = this.timeout == 1 ? 1 : this.timeout - 1;
         }
     }
 
@@ -631,32 +676,44 @@ number_input.init = function(parent, height, initial_value, low, high) {
     parent.addChild(this.container);
 }
 
-var plus_minus_buttons = Object.create(ui_images);
-plus_minus_buttons.imagename = ['plus.png', 'minus.png'];
-plus_minus_buttons.init = function (parent, size) {
+var buttons = Object.create(ui_images);
+buttons.imagename = ['plus.jpg', 'minus.jpg', 'ok.jpg'];
+buttons.init = function (parent, size) {
     var plusbutton = new PIXI.Sprite(PIXI.loader.resources[this.imagename[0]].texture);
     var minusbutton = new PIXI.Sprite(PIXI.loader.resources[this.imagename[1]].texture);
+    var okbutton = new PIXI.Sprite(PIXI.loader.resources[this.imagename[2]].texture);
     plusbutton.width = plusbutton.height = size;
     minusbutton.width = minusbutton.height = size;
+    okbutton.width = okbutton.height = size;
+    okbutton.y = 0;
+    okbutton.visible = false;
     plusbutton.y  = 0;
     minusbutton.y = size;
     this.container = new PIXI.Container();
     this.container.addChild(plusbutton);
     this.container.addChild(minusbutton);
+    this.container.addChild(okbutton);
 
     plusbutton.interactive = true;
     minusbutton.interactive = true;
+    okbutton.interactive = true;
 
     register_event(plusbutton,  this, buttonstart, buttonend,  1);
     register_event(minusbutton, this, buttonstart, buttonend, -1);
+    register_event(okbutton, this, buttonstart, buttonend, 0);
 
-    stage.addChild(this.container);
+    parent.addChild(this.container);
 
     function buttonstart (e, p) {
-        if (p > 0) {
-            console.log("PLUS BUTTON PRESSED");
+        if (p == 0) {
+            plusbutton.visible = true;
+            minusbutton.visible = true;
+            okbutton.visible = false;
+        } else if (p > 0) {
+            plusbutton.visible = false;
+            minusbutton.visible = false;
+            okbutton.visible = true;
         } else {
-            console.log("MINUS BUTTON PRESSED");
         }
     }
 

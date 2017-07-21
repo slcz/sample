@@ -644,64 +644,64 @@ function setdrag(stage) {
     rbox2.imagename = ["same.png", "valid.png"];
     var component_select = Object.create(select_wheel);
     component_select.components = [Pool2d, Input, FullyConnected, Conv2d];
-    
+
     var renderer = PIXI.autoDetectRenderer();
-    
+
     renderer.view.style.position = "absolute";
     renderer.view.style.display = "block";
     renderer.autoResize = true;
     renderer.resize(window.innerWidth, window.innerHeight);
-    
+
     document.body.appendChild(renderer.view);
-    
+
     var stage = new PIXI.Container();
-    
+
     renderer.backgroundColor = 0x000000;
-    
+
     PIXI.loader.add(image_collection.collection).load(setup);
 
     function update() {
         requestAnimationFrame(update);
-    
+
         for (var i = 0; i < timer_queue.queue.length; i ++) {
             var q = timer_queue.queue[i];
             q.f.call(q.o);
         }
-    
+
         renderer.render(stage);
     }
 
     function setup() {
         var canvasw = window.innerWidth, canvash = window.innerHeight;
         var networklayers, controllayers;
-    
+
         var gadgets = [];
-    
+
         controllayers = new PIXI.Container();
         buttons.init(controllayers, button_size);
         gadgets.push(buttons.container);
-    
+
         component_select.init(controllayers, component_select_size);
         gadgets.push(component_select.container);
-    
+
         var width_input = Object.create(number_input);
         width_input.init(controllayers, number_input_size, 0, 0, 9999);
         gadgets.push(width_input.container);
-    
+
         var height_input = Object.create(number_input);
         height_input.init(controllayers, number_input_size, 0, 0, 9999);
         gadgets.push(height_input.container);
-    
+
         var channel_input = Object.create(number_input);
         channel_input.init(controllayers, number_input_size, 0, 0, 9999);
         gadgets.push(channel_input.container);
-    
+
         rbox1.init(controllayers, 2, radio_box_size);
         gadgets.push(rbox1.container);
-    
+
         rbox2.init(controllayers, 0, radio_box_size);
         gadgets.push(rbox2.container);
-    
+
         var w = 0, h = 0;
         for (var i = 0; i < gadgets.length; i ++) {
             var gadget = gadgets[i];
@@ -710,12 +710,12 @@ function setdrag(stage) {
                 h = gadget.height;
         }
         w += gap;
-    
+
         var width = canvasw, height = Math.floor(canvash * (1.0 - network_layer_scale));
         var ratio = 1.0;
         if (w > width)
             ratio = width / w;
-    
+
         var offset = 0;
         for (var i = 0; i < gadgets.length; i ++) {
             var gadget = gadgets[i];
@@ -724,23 +724,23 @@ function setdrag(stage) {
             gadget.y = Math.floor(h - gadget.height / 2);
             offset += gadget.width;
         }
-    
+
         stage.addChild(controllayers);
         controllayers.x = 0;
         controllayers.y = height;
         controllayers.scale.x = ratio;
         controllayers.scale.y = ratio;
-    
+
         height = canvash * network_layer_scale;
         networklayers = new PIXI.Container();
         layers = draw_network(networklayers, network_desc, width, height);
         stage.addChild(networklayers);
         networklayers.x = networklayers.y = 0;
-    
+
         setdrag(networklayers);
-    
+
         renderer.render(stage);
-    
+
         update();
     }
 })();

@@ -15,7 +15,6 @@ const network_depth_ratio = 0.5;
 const network_height_ratio = 0.3;
 
 var state = {
-    network_desc : [],
     gadgets      : [],
     networklayers: null,
     controllayers: null
@@ -41,7 +40,7 @@ var image_collection = {
 
 var component = {
     name       : "Component",
-    collection:        {},
+    collection : {},
     __image__  : [],
     set imagename(name) {
         image_collection.push(name);
@@ -51,6 +50,7 @@ var component = {
         return this.__image__;
     },
     type       : "Type",
+    code       : "code",
     output_dim : [],
     input_dim  : [],
     pred       : null,
@@ -127,13 +127,16 @@ function remove_children(container) {
 var FullyConnected = Object.create(component);
 FullyConnected.imagename = ['fc.png'];
 FullyConnected.type = "Fully Connected Layer";
-FullyConnected.init = function(pred, name, size) {
+FullyConnected.code = "fc";
+FullyConnected.init = function(pred, name, property) {
+    let size = property['width'];
     this.link(pred, name);
     let all = 1;
     for (let i = 0; i < pred.output_dim.length; i ++)
         all *= pred.output_dim[i];
     this.input_dim  = [all];
     this.output_dim = [size];
+    return this;
 }
 FullyConnected.draw = function (stage, ratio, maxw, maxh) {
     let size = this.output_dim[0];
@@ -163,6 +166,7 @@ FullyConnected.draw = function (stage, ratio, maxw, maxh) {
 
 var component3D = Object.create(component);
 component3D.type = "3D";
+component3D.code = "threed";
 component3D.imagename = [];
 component3D.draw = function(stage, ratio, maxw, maxh) {
     let width    = this.output_dim[0];
@@ -214,16 +218,26 @@ component3D.draw = function(stage, ratio, maxw, maxh) {
 
 var Input = Object.create(component3D);
 Input.type = "Input Layer";
+Input.code = "input";
 Input.imagename = ["input.jpg"];
-Input.init = function(pred, name, width, height, channels) {
+Input.init = function(pred, name, property) {
+    let width    = property['width'];
+    let height   = property['height'];
+    let channels = property['channel'];
     this.link(pred, name);
     this.input_dim = this.output_dim = [width, height, channels];
+    return this;
 }
 
 var Pool2d = Object.create(component3D);
 Pool2d.type = "Pooling Layer";
+Pool2d.code = "pool";
 Pool2d.imagename = ["pooling.png"];
-Pool2d.init = function(pred, name, kernel_width, kernel_height, stride, padding_same) {
+Pool2d.init = function(pred, name, property) {
+    let kernel_width = property['width'];
+    let kernel_height = property['height'];
+    let stride = property['stride'];
+    let padding_same = property['padding'] == 0 ? true : false;
     this.link(pred, name);
     this.kernel_width  = kernel_width;
     this.kernel_height = kernel_height;
@@ -244,6 +258,7 @@ Pool2d.init = function(pred, name, kernel_width, kernel_height, stride, padding_
     ow = Math.floor(ow / stride);
     oh = Math.floor(oh / stride);
     this.output_dim    = [ow, oh, ic];
+    return this;
 }
 Pool2d.doc = function() {
     let doc = this.header();
@@ -256,8 +271,15 @@ Pool2d.doc = function() {
 
 var Conv2d = Object.create(component3D);
 Conv2d.type = "Convolutional Layer";
+Conv2d.code = "conv";
 Conv2d.imagename = ["convolution.png"];
-Conv2d.init = function (pred, name, channels, kernel_width, kernel_height, stride, padding_same, activation) {
+Conv2d.init = function (pred, name, property) {
+    let kernel_width = property['width'];
+    let kernel_height = property['height'];
+    let channels = property['channel'];
+    let stride = property['stride'];
+    let padding_same = property['padding'] == 0 ? true : false;
+    let activation = property['activation'] == 0 ? false : true;
     this.link(pred, name);
     this.kernel_width  = kernel_width;
     this.kernel_height = kernel_height;
@@ -280,6 +302,8 @@ Conv2d.init = function (pred, name, channels, kernel_width, kernel_height, strid
     ow = Math.floor(ow / stride);
     oh = Math.floor(oh / stride);
     this.output_dim    = [ow, oh, this.channels];
+
+    return this;
 }
 Conv2d.doc = function() {
     let doc = this.header();
@@ -298,28 +322,24 @@ function clear_network(stage) {
         node.remove();
         node = node.succ;
     }
-    component.collection = {};
     remove_children(stage);
 }
 
-function draw_network(stage, desc, canvasw, canvash) {
-    for (let i = 0; i < desc.length; i ++) {
-        let e     = desc[i];
-        let proto = e[0];
-        let pred_name = e[1];
-        if (pred_name != null)
-            e[2] = component.collection[pred_name];
-        else
-            e[2] = null;
-        let obj = Object.create(proto);
-        obj.init.apply(obj, e.slice(2, e.length));
-    }
+function draw_network(collection, stage, canvasw, canvash) {
+    console.log('draw ' + canvasw, canvash);
+    let nlayers = 0;
 
-    let nlayers = desc.length;
+    let node = collection["root"];
+    while (node != null) {
+        console.log(node.name);
+        nlayers ++;
+        node = node.succ;
+    }
+    console.log('nlayers ' + nlayers);
     let layerw = Math.floor(canvasw / nlayers), layerh = Math.floor(canvash);
 
     let max_width = 0, max_height = 0;
-    let node = component.collection["input"];
+    node = collection["root"];
     while (node != null) {
         if (node.output_dim.length > 1) {
             if (node.output_dim[0] > max_width)
@@ -330,6 +350,7 @@ function draw_network(stage, desc, canvasw, canvash) {
         }
         node = node.succ;
     }
+    console.log('maxwidth = ' + max_width + " max_height = " + max_height);
 
     let ratiow, ratioh, ratio;
 
@@ -342,12 +363,13 @@ function draw_network(stage, desc, canvasw, canvash) {
 
     max_height = 0;
 
-    node = component.collection["input"];
+    node = collection["root"];
     while (node != null) {
         let maxw = layerw, maxh = layerh;
         let layer;
         layer = new PIXI.Container();
 
+        console.log("draw " + node.name);
         node.draw(layer, ratio, maxw, maxh);
         layer.x = x;
         layer.y = y;
@@ -392,6 +414,8 @@ var timer_queue = {
 
 var ui_images = {
     __image__  : [],
+    name : "",
+    value : null,
     set imagename(name) {
         image_collection.push(name);
         this.__image__ = name;
@@ -418,7 +442,7 @@ var radio_box = Object.create(ui_images);
 radio_box.init = function(stage, def, size) {
     const dark = 0.2, bright = 1.0;
     let start = function(e, p) {
-        this.select = p;
+        this.value = p;
         for (let i = 0; i < this.imagename.length; i ++) {
             let pic = this.sprites[i];
             if (i != p)
@@ -428,14 +452,14 @@ radio_box.init = function(stage, def, size) {
         }
     }
     let end = function (e, p) { }
-    this.select = def;
+    this.value = def;
     this.container = new PIXI.Container();
     this.sprites = [];
     for (let i = 0; i < this.imagename.length; i ++) {
         let name = this.imagename[i];
         let pic = new PIXI.Sprite(PIXI.loader.resources[name].texture);
         pic.alpha = dark;
-        if (i === this.select)
+        if (i === this.value)
             pic.alpha = bright;
         pic.interactive = true;
         register_event(pic, this, start, end, i);
@@ -452,22 +476,22 @@ var select_wheel = Object.create(ui_images);
 select_wheel.components = [];
 select_wheel.init = function(parent, size) {
     this.imagename = this.components.reduce(function (sum, x) { return sum.concat(x.imagename); }, ['left.png', 'right.png']);
-    this.sel = 0;
+    this.value = 0;
     this.container = new PIXI.Container();
     this.win = new PIXI.Container();
     this.nr_sels = this.imagename.length - 2;
     this.images = [];
     for (let i = 2; i < this.imagename.length; i ++) {
         let name = this.imagename[i];
-        image = new PIXI.Sprite(PIXI.loader.resources[this.imagename[i]].texture);
+        image = new PIXI.Sprite(PIXI.loader.resources[name].texture);
         image.width = size;
         image.height = size;
         this.win.addChild(image);
         this.images.push(image);
-        if (this.sel === i - 2)
-            this.visible = true;
+        if (this.value === i - 2)
+            image.visible = true;
         else
-            this.visible = false;
+            image.visible = false;
     }
     this.win.width = this.win.height = size;
 
@@ -489,13 +513,13 @@ select_wheel.init = function(parent, size) {
     parent.addChild(this.container);
 
     function buttonstart (e, p) {
-        this.sel += p;
-        if (this.sel < 0)
-            this.sel = this.nr_sels - 1;
-        if (this.sel >= this.nr_sels)
-            this.sel = 0;
+        this.value += p;
+        if (this.value < 0)
+            this.value = this.nr_sels - 1;
+        if (this.value >= this.nr_sels)
+            this.value = 0;
         for (let i = 0; i < this.images.length; i ++)
-            this.images[i].visible = this.sel === i ? true : false;
+            this.images[i].visible = this.value === i ? true : false;
     }
 
     function buttonend (e, p) { }
@@ -612,22 +636,35 @@ buttons.init = function (parent, size) {
 
     function buttonstart (e, p) {
         let change = false;
-        let net = state.network_desc;
         if (p === 0) {
-            plusbutton.visible = true;
-            minusbutton.visible = true;
-            okbutton.visible = false;
-            for (let k in state.gadgets)
-                if (k !== 'buttons')
-                    state.gadgets[k].container.visible = false;
-            change = true;
+            if (create_component() != null) {
+                plusbutton.visible = true;
+                minusbutton.visible = true;
+                okbutton.visible = false;
+                for (let k in state.gadgets)
+                    if (k !== 'buttons')
+                        state.gadgets[k].container.visible = false;
+                change = true;
+            }
         } else if (p > 0) {
             plusbutton.visible = false;
             minusbutton.visible = false;
             okbutton.visible = true;
+            for (let k in state.gadgets)
+                state.gadgets[k].container.visible = true;
         } else {
-            if (net.length > 0) {
-                net.pop();
+            let node = component.collection['root'], parent = null;
+            while (node) {
+                parent = node;
+                node = node.succ;
+            }
+            if (parent) {
+                node = parent;
+                parent = parent.pred;
+                node.pred = null;
+                if (parent) {
+                    parent.succ = null;
+                }
                 change = true;
             }
         }
@@ -636,12 +673,35 @@ buttons.init = function (parent, size) {
             let width = canvasw;
             let height = Math.floor(canvash * network_layer_scale);
             clear_network(state.networklayers);
-            draw_network(state.networklayers, state.network_desc,
-                width, height);
+            draw_network(component.collection, state.networklayers, width, height);
         }
     }
 
     function buttonend (e, p) {}
+}
+
+function create_component() {
+    let node = component.collection['root'], parent = null;
+    let index = 1;
+    while (node) {
+        parent = node;
+        node = node.succ;
+        index ++;
+    }
+    let pairs = {};
+    for (let gadget in state.gadgets) {
+        let obj = state.gadgets[gadget];
+        pairs[obj.name] = obj.value;
+    }
+    let obj = state.gadgets.component_select.components[pairs.component];
+
+    let comp = Object.create(obj);
+    if (comp.init(parent, obj.code + index, pairs) != null) {
+        if (parent == null)
+            component.collection['root'] = comp;
+        return comp;
+    }
+    return null;
 }
 
 function setdrag(stage) {
@@ -738,20 +798,33 @@ function setdrag(stage) {
         let channel_input = Object.create(number_input);
         channel_input.init(state.controllayers, number_input_size, 0, 0, 9999);
 
+        let stride_input = Object.create(number_input);
+        stride_input.init(state.controllayers, number_input_size, 0, 0, 99);
+
         rbox1.init(state.controllayers, 2, radio_box_size);
 
         rbox2.init(state.controllayers, 0, radio_box_size);
+        buttons.name          = "control";
+        component_select.name = "component";
+        width_input.name      = "width";
+        height_input.name     = "height";
+        channel_input.name    = "channel";
+        stride_input.name     = "stride";
+        rbox1.name            = "activation";
+        rbox2.name            = "padding";
         state.gadgets = {
             buttons:          buttons,
             component_select: component_select,
             width_input:      width_input,
             height_input:     height_input,
             channel_input:    channel_input,
+            stride_input:     stride_input,
             rbox1:            rbox1,
-            rbox2:            rbox2 };
+            rbox2:            rbox2,
+        };
         let containers = [];
         for (let k in state.gadgets) {containers.push(state.gadgets[k].container);}
-            
+
         let w = 0, h = 0;
         for (let i = 0; i < containers.length; i ++) {
             let gadget = containers[i];
@@ -786,7 +859,7 @@ function setdrag(stage) {
 
         height = Math.floor(canvash * network_layer_scale);
         state.networklayers = new PIXI.Container();
-        draw_network(state.networklayers, state.network_desc, width, height);
+        draw_network(component.collection, state.networklayers, width, height);
         stage.addChild(state.networklayers);
         state.networklayers.x = state.networklayers.y = 0;
 
@@ -798,10 +871,12 @@ function setdrag(stage) {
     }
 })();
 
+/*
 state.network_desc = [
     [ Input,     null, null, "input", 224, 224,  3                ],
     [ Conv2d, "input", null, "conv1_1",  64,  3, 3, 1, true, true ],
-    [ Conv2d, "conv1_1", null, "conv1_2",64,  3, 3, 1, true, true ],
+    [ Conv2d, "conv1_1", null, "conv1_2",64,  3, 3, 1, true, true ]
+];
     [ Pool2d, "conv1_2", null, "pool1", 2, 2, 2, true],
 
     [ Conv2d, "pool1",   null, "conv2_1", 128, 3, 3, 1, true, true ],
@@ -827,3 +902,4 @@ state.network_desc = [
     [ FullyConnected, "FC1",   null, "FC2", 4096],
     [ FullyConnected, "FC2",   null, "FC3", 1000]
 ];
+*/

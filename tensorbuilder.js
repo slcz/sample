@@ -326,16 +326,13 @@ function clear_network(stage) {
 }
 
 function draw_network(collection, stage, canvasw, canvash) {
-    console.log('draw ' + canvasw, canvash);
     let nlayers = 0;
 
     let node = collection["root"];
     while (node != null) {
-        console.log(node.name);
         nlayers ++;
         node = node.succ;
     }
-    console.log('nlayers ' + nlayers);
     let layerw = Math.floor(canvasw / nlayers), layerh = Math.floor(canvash);
 
     let max_width = 0, max_height = 0;
@@ -350,7 +347,6 @@ function draw_network(collection, stage, canvasw, canvash) {
         }
         node = node.succ;
     }
-    console.log('maxwidth = ' + max_width + " max_height = " + max_height);
 
     let ratiow, ratioh, ratio;
 
@@ -369,7 +365,6 @@ function draw_network(collection, stage, canvasw, canvash) {
         let layer;
         layer = new PIXI.Container();
 
-        console.log("draw " + node.name);
         node.draw(layer, ratio, maxw, maxh);
         layer.x = x;
         layer.y = y;
@@ -638,11 +633,12 @@ buttons.init = function (parent, size) {
         let change = false;
         if (p === 0) {
             if (create_component() != null) {
+                console.log('here');
                 plusbutton.visible = true;
                 minusbutton.visible = true;
                 okbutton.visible = false;
                 for (let k in state.gadgets)
-                    if (k !== 'buttons')
+                    if (k !== 'control')
                         state.gadgets[k].container.visible = false;
                 change = true;
             }
@@ -662,9 +658,10 @@ buttons.init = function (parent, size) {
                 node = parent;
                 parent = parent.pred;
                 node.pred = null;
-                if (parent) {
+                if (parent)
                     parent.succ = null;
-                }
+                else
+                    component.collection['root'] = null;
                 change = true;
             }
         }
@@ -693,7 +690,7 @@ function create_component() {
         let obj = state.gadgets[gadget];
         pairs[obj.name] = obj.value;
     }
-    let obj = state.gadgets.component_select.components[pairs.component];
+    let obj = state.gadgets['component'].components[pairs['component']];
 
     let comp = Object.create(obj);
     if (comp.init(parent, obj.code + index, pairs) != null) {
@@ -813,14 +810,14 @@ function setdrag(stage) {
         rbox1.name            = "activation";
         rbox2.name            = "padding";
         state.gadgets = {
-            buttons:          buttons,
-            component_select: component_select,
-            width_input:      width_input,
-            height_input:     height_input,
-            channel_input:    channel_input,
-            stride_input:     stride_input,
-            rbox1:            rbox1,
-            rbox2:            rbox2,
+            control:          buttons,
+            component:        component_select,
+            width:            width_input,
+            height:           height_input,
+            channel:          channel_input,
+            stride:           stride_input,
+            activation:       rbox1,
+            padding:          rbox2,
         };
         let containers = [];
         for (let k in state.gadgets) {containers.push(state.gadgets[k].container);}
@@ -854,7 +851,7 @@ function setdrag(stage) {
         state.controllayers.scale.x = ratio;
         state.controllayers.scale.y = ratio;
         for (let k in state.gadgets)
-            if (k !== 'buttons')
+            if (k !== 'control')
                 state.gadgets[k].container.visible = false;
 
         height = Math.floor(canvash * network_layer_scale);

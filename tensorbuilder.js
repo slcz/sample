@@ -6,7 +6,7 @@ const radio_box_size = 2 * control_unit;
 const component_select_size = 3 * control_unit;
 const number_input_size = control_unit;
 const button_size = control_unit;
-const pooling_timeout = 10;
+const pooling_timeout = 60;
 const gap = 2 * control_unit;
 const fc_radius = 8;
 const minsize = 4;
@@ -130,6 +130,7 @@ FullyConnected.type = "Fully Connected Layer";
 FullyConnected.code = "fc";
 FullyConnected.init = function(pred, name, property) {
     let size = property['width'];
+    this.activation = property['activation'] == 0 ? false : true;
     this.link(pred, name);
     let all = 1;
     for (let i = 0; i < pred.output_dim.length; i ++)
@@ -162,6 +163,11 @@ FullyConnected.draw = function (stage, ratio, maxw, maxh) {
             break;
     }
     label(this.doc(), stage, x, y + fc_radius);
+}
+FullyConnected.doc = function () {
+    let doc = this.header();
+    doc += " *Activation: " + (this.activation ? "ReLU" : "None");
+    return doc;
 }
 
 var component3D = Object.create(component);
@@ -564,9 +570,9 @@ number_input.init = function(parent, height, initial_value, low, high) {
     this.timer_value = 0;
 
     function settext() {
-        let value = Math.floor(this.timer_value / this.timeout);
-        this.value += this.delta * value;
-        this.value = this.value < this.low ? this.low : this.value > this.high ? this.high : this.value;
+        this.value += this.delta;
+        this.value = this.value < this.low ?  this.low :
+            this.value > this.high ? this.high : this.value;
         let digits = ('0'.repeat(this.ndigit) + this.value).slice(-this.ndigit);
         this.text.text = digits;
     }
@@ -575,6 +581,8 @@ number_input.init = function(parent, height, initial_value, low, high) {
         this.timer_value ++;
         if (this.timer_value % this.timeout === 0) {
             settext.call(this);
+            this.timeout = this.timeout == 1 ? this.timeout : this.timeout - 1;
+            this.delta += this.delta > 0 ? 1 : -1;
         }
     }
 

@@ -75,7 +75,13 @@ var component = {
         }
     },
     validate : function(name, parent) { return true; },
-    header : function () {
+    json : function () {
+        var data = {};
+        data['name'] = this.name;
+        data['code'] = this.code;
+        return data;
+    },
+    doc : function () {
         let doc;
         doc = this.type + " " + this.name + "\n";
         for (let i = 0; i < this.input_dim.length; i ++) {
@@ -97,9 +103,6 @@ var component = {
                 doc += "\n";
         }
         return doc;
-    },
-    doc : function () {
-        return this.header();
     }
 }
 
@@ -142,6 +145,12 @@ FullyConnected.validate = function (name, parent) {
         "padding":    { valid: false } } ;
     return list[name];
 };
+FullyConnected.json = function () {
+    var doc = component.json.call(this);
+    doc['width'] = this.output_dim[0];
+    doc['activation'] = this.activation;
+    return doc;
+};
 FullyConnected.imagename = ['fc.png'];
 FullyConnected.type = "Fully Connected Layer";
 FullyConnected.code = "fc";
@@ -182,7 +191,7 @@ FullyConnected.draw = function (stage, ratio, maxw, maxh) {
     label(this.doc(), stage, x, y + fc_radius);
 }
 FullyConnected.doc = function () {
-    let doc = this.header();
+    let doc = component.doc.call(this);
     doc += " *Activation: " + (this.activation ? "ReLU" : "None");
     return doc;
 }
@@ -266,7 +275,14 @@ Input.init = function(pred, name, property) {
     this.link(pred, name);
     this.input_dim = this.output_dim = [width, height, channels];
     return this;
-}
+};
+Input.json = function () {
+    let doc = component.json.call(this);
+    doc['width']      = this.input_dim[0];
+    doc['height']     = this.input_dim[1];
+    doc['channel']    = this.input_dim[2];
+    return doc;
+};
 
 var Pool2d = Object.create(component3D);
 Pool2d.validate = function (name, parent) {
@@ -291,7 +307,7 @@ Pool2d.init = function(pred, name, property) {
     let kernel_width = property['width'];
     let kernel_height = property['height'];
     let stride = property['stride'];
-    let padding_same = property['padding'] == 0 ? true : false;
+    let padding_same = property['padding'] != 0 ? true : false;
     this.link(pred, name);
     this.kernel_width  = kernel_width;
     this.kernel_height = kernel_height;
@@ -313,15 +329,23 @@ Pool2d.init = function(pred, name, property) {
     oh = Math.floor(oh / stride);
     this.output_dim    = [ow, oh, ic];
     return this;
-}
+};
 Pool2d.doc = function() {
-    let doc = this.header();
+    let doc = component3D.doc.call(this);
     doc += "Kernel: ";
     doc += this.kernel_width + " x " + this.kernel_height + "\n";
     doc += "*Stride: " + this.stride;
     doc += " *Padding: " + (this.padding_same ? "Same" : "Valid");
     return doc;
-}
+};
+Pool2d.json = function () {
+    var doc = component.json.call(this);
+    doc['width']      = this.kernel_width;
+    doc['height']     = this.kernel_height;
+    doc['stride']     = this.stride;
+    doc['padding']    = this.padding_same;
+    return doc;
+};
 
 var Conv2d = Object.create(component3D);
 Conv2d.validate = function (name, parent) {
@@ -347,7 +371,7 @@ Conv2d.init = function (pred, name, property) {
     let kernel_height = property['height'];
     let channels = property['channel'];
     let stride = property['stride'];
-    let padding_same = property['padding'] == 0 ? true : false;
+    let padding_same = property['padding'] != 0 ? true : false;
     let activation = property['activation'] == 0 ? false : true;
     this.link(pred, name);
     this.kernel_width  = kernel_width;
@@ -373,9 +397,9 @@ Conv2d.init = function (pred, name, property) {
     this.output_dim    = [ow, oh, this.channels];
 
     return this;
-}
+};
 Conv2d.doc = function() {
-    let doc = this.header();
+    let doc = component.doc.call(this);
 
     doc += "Kernel: ";
     doc += this.kernel_width + " x " + this.kernel_height + " x " + this.channels + "\n";
@@ -383,7 +407,17 @@ Conv2d.doc = function() {
     doc += " *Padding: " + (this.padding_same ? "Same" : "Valid");
     doc += " *Activation: " + (this.activation ? "ReLU" : "None");
     return doc;
-}
+};
+Conv2d.json = function () {
+    var doc = component.json.call(this);
+    doc['width']      = this.kernel_width;
+    doc['height']     = this.kernel_height;
+    doc['channel']    = this.channels;
+    doc['stride']     = this.stride;
+    doc['padding']    = this.padding_same;
+    doc['activation'] = this.activation;
+    return doc;
+};
 
 function clear_network(stage) {
     let node = component.collection["input"];
@@ -799,6 +833,7 @@ buttons.init = function (parent, size) {
                 else
                     component.collection['root'] = null;
                 change = true;
+                post_json();
             }
         }
         if (change) {
@@ -811,6 +846,49 @@ buttons.init = function (parent, size) {
     }
 
     function buttonend (e, p) {}
+}
+
+function post_json() {
+    let node = component.collection['root'];
+    let body = [];
+    while (node) {
+        let component_json = node.json();
+        body.push(component_json);
+        node = node.succ;
+    }
+    let json = { 'model' : body };
+    let xhr = new XMLHttpRequest();
+    xhr.open('POST', '/model');
+    xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+    xhr.send(JSON.stringify(json));
+}
+
+function create_from_json(jsonmodel) {
+    let model = JSON.parse(jsonmodel)["model"];
+    if (model == null)
+        return;
+    let components = state.gadgets['component'].components;
+    let parent = null;
+    for (let i = 0; i < model.length; i ++) {
+        let json = model[i];
+        let component_class = null;
+        for (let j = 0; j < components.length; j ++) {
+            if (components[j].code === json['code']) {
+                component_class = components[j];
+                break;
+            }
+        }
+        if (component_class === null) {
+            component.collection['root'] = null;
+            return;
+        }
+        let new_object = Object.create(component_class);
+        if (new_object.init(parent, json['name'], json) != null) {
+            if (parent == null)
+                component.collection['root'] = new_object;
+            parent = new_object;
+        }
+    }
 }
 
 function create_component() {
@@ -832,6 +910,7 @@ function create_component() {
     if (comp.init(parent, obj.code + index, pairs) != null) {
         if (parent == null)
             component.collection['root'] = comp;
+        post_json();
         return comp;
     }
     return null;
@@ -894,127 +973,138 @@ function component_selected(component) {
 }
 
 (function() {
-    let rbox1 = Object.create(radio_box);
-    rbox1.imagename = ["linear.png", "sigmoid.png", "relu.png"];
-    let rbox2 = Object.create(radio_box);
-    rbox2.imagename = ["same.png", "valid.png"];
-    let component_select = Object.create(select_wheel);
-    component_select.components = [Pool2d, Input, FullyConnected, Conv2d];
-    component_select.value_change = component_selected;
+    let xml = new XMLHttpRequest();
+    let model_desc = {};
+    xml.onload = model_loaded;
+    xml.open('GET', '/getmodel');
+    xml.send();
 
-    let renderer = PIXI.autoDetectRenderer();
+    function model_loaded() {
+        if (xml.readyState == 4 && xml.status == 200)
+            model_desc = xml.responseText;
+        let rbox1 = Object.create(radio_box);
+        rbox1.imagename = ["linear.png", "sigmoid.png", "relu.png"];
+        let rbox2 = Object.create(radio_box);
+        rbox2.imagename = ["valid.png", "same.png"];
+        let component_select = Object.create(select_wheel);
+        component_select.components = [Pool2d, Input, FullyConnected, Conv2d];
+        component_select.value_change = component_selected;
+    
+        let renderer = PIXI.autoDetectRenderer();
+    
+        renderer.view.style.position = "absolute";
+        renderer.view.style.display = "block";
+        renderer.autoResize = true;
+        renderer.resize(window.innerWidth, window.innerHeight);
+    
+        document.body.appendChild(renderer.view);
+    
+        let stage = new PIXI.Container();
+    
+        renderer.backgroundColor = 0x000000;
+    
+        PIXI.loader.add(image_collection.collection).load(setup);
+    
+        function update() {
+            requestAnimationFrame(update);
 
-    renderer.view.style.position = "absolute";
-    renderer.view.style.display = "block";
-    renderer.autoResize = true;
-    renderer.resize(window.innerWidth, window.innerHeight);
-
-    document.body.appendChild(renderer.view);
-
-    let stage = new PIXI.Container();
-
-    renderer.backgroundColor = 0x000000;
-
-    PIXI.loader.add(image_collection.collection).load(setup);
-
-    function update() {
-        requestAnimationFrame(update);
-
-        for (let i = 0; i < timer_queue.queue.length; i ++) {
-            let q = timer_queue.queue[i];
-            q.f.call(q.o);
+            for (let i = 0; i < timer_queue.queue.length; i ++) {
+                let q = timer_queue.queue[i];
+                q.f.call(q.o);
+            }
+    
+            renderer.render(stage);
         }
-
-        renderer.render(stage);
-    }
-
-    function setup() {
-        let canvasw = window.innerWidth, canvash = window.innerHeight;
-
-        state.controllayers = new PIXI.Container();
-        buttons.init(state.controllayers, button_size);
-
-        component_select.init(state.controllayers, component_select_size);
-
-        let width_input = Object.create(number_input);
-        width_input.init(state.controllayers, number_input_size, 0, 0, 9999);
-
-        let height_input = Object.create(number_input);
-        height_input.init(state.controllayers, number_input_size, 0, 0, 9999);
-
-        let channel_input = Object.create(number_input);
-        channel_input.init(state.controllayers, number_input_size, 0, 0, 9999);
-
-        let stride_input = Object.create(number_input);
-        stride_input.init(state.controllayers, number_input_size, 0, 0, 99);
-
-        rbox1.init(state.controllayers, 2, radio_box_size);
-
-        rbox2.init(state.controllayers, 0, radio_box_size);
-        buttons.name          = "control";
-        component_select.name = "component";
-        width_input.name      = "width";
-        height_input.name     = "height";
-        channel_input.name    = "channel";
-        stride_input.name     = "stride";
-        rbox1.name            = "activation";
-        rbox2.name            = "padding";
-        state.gadgets = {
-            control:          buttons,
-            component:        component_select,
-            width:            width_input,
-            height:           height_input,
-            channel:          channel_input,
-            stride:           stride_input,
-            activation:       rbox1,
-            padding:          rbox2,
-        };
-        let containers = [];
-        for (let k in state.gadgets) {containers.push(state.gadgets[k].container);}
-
-        let w = 0, h = 0;
-        for (let i = 0; i < containers.length; i ++) {
-            let gadget = containers[i];
-            w += gadget.width + gap;
-            if (gadget.height > h)
-                h = gadget.height;
+    
+        function setup() {
+            let canvasw = window.innerWidth, canvash = window.innerHeight;
+    
+            state.controllayers = new PIXI.Container();
+            buttons.init(state.controllayers, button_size);
+    
+            component_select.init(state.controllayers, component_select_size);
+    
+            let width_input = Object.create(number_input);
+            width_input.init(state.controllayers, number_input_size, 0, 0, 9999);
+    
+            let height_input = Object.create(number_input);
+            height_input.init(state.controllayers, number_input_size, 0, 0, 9999);
+    
+            let channel_input = Object.create(number_input);
+            channel_input.init(state.controllayers, number_input_size, 0, 0, 9999);
+    
+            let stride_input = Object.create(number_input);
+            stride_input.init(state.controllayers, number_input_size, 0, 0, 99);
+    
+            rbox1.init(state.controllayers, 2, radio_box_size);
+    
+            rbox2.init(state.controllayers, 0, radio_box_size);
+            buttons.name          = "control";
+            component_select.name = "component";
+            width_input.name      = "width";
+            height_input.name     = "height";
+            channel_input.name    = "channel";
+            stride_input.name     = "stride";
+            rbox1.name            = "activation";
+            rbox2.name            = "padding";
+            state.gadgets = {
+                control:          buttons,
+                component:        component_select,
+                width:            width_input,
+                height:           height_input,
+                channel:          channel_input,
+                stride:           stride_input,
+                activation:       rbox1,
+                padding:          rbox2,
+            };
+            let containers = [];
+            for (let k in state.gadgets) {containers.push(state.gadgets[k].container);}
+    
+            let w = 0, h = 0;
+            for (let i = 0; i < containers.length; i ++) {
+                let gadget = containers[i];
+                w += gadget.width + gap;
+                if (gadget.height > h)
+                    h = gadget.height;
+            }
+            w += gap;
+    
+            let width = canvasw, height = Math.floor(canvash * (1.0 - network_layer_scale));
+            let ratio = 1.0;
+            if (w > width)
+                ratio = width / w;
+    
+            let offset = 0;
+            for (let i = 0; i < containers.length; i ++) {
+                let gadget = containers[i];
+                offset += gap;
+                gadget.x = offset;
+                gadget.y = Math.floor(h - gadget.height / 2);
+                offset += gadget.width;
+            }
+    
+            stage.addChild(state.controllayers);
+            state.controllayers.x = 0;
+            state.controllayers.y = height;
+            state.controllayers.scale.x = ratio;
+            state.controllayers.scale.y = ratio;
+            for (let k in state.gadgets)
+                if (k !== 'control')
+                    state.gadgets[k].container.visible = false;
+    
+            height = Math.floor(canvash * network_layer_scale);
+            create_from_json(model_desc);
+            state.networklayers = new PIXI.Container();
+            draw_network(component.collection, state.networklayers, width, height);
+            stage.addChild(state.networklayers);
+            state.networklayers.x = state.networklayers.y = 0;
+    
+            setdrag(state.networklayers);
+    
+            renderer.render(stage);
+    
+            update();
         }
-        w += gap;
-
-        let width = canvasw, height = Math.floor(canvash * (1.0 - network_layer_scale));
-        let ratio = 1.0;
-        if (w > width)
-            ratio = width / w;
-
-        let offset = 0;
-        for (let i = 0; i < containers.length; i ++) {
-            let gadget = containers[i];
-            offset += gap;
-            gadget.x = offset;
-            gadget.y = Math.floor(h - gadget.height / 2);
-            offset += gadget.width;
-        }
-
-        stage.addChild(state.controllayers);
-        state.controllayers.x = 0;
-        state.controllayers.y = height;
-        state.controllayers.scale.x = ratio;
-        state.controllayers.scale.y = ratio;
-        for (let k in state.gadgets)
-            if (k !== 'control')
-                state.gadgets[k].container.visible = false;
-
-        height = Math.floor(canvash * network_layer_scale);
-        state.networklayers = new PIXI.Container();
-        draw_network(component.collection, state.networklayers, width, height);
-        stage.addChild(state.networklayers);
-        state.networklayers.x = state.networklayers.y = 0;
-
-        setdrag(state.networklayers);
-
-        renderer.render(stage);
-
-        update();
     }
 })();
 

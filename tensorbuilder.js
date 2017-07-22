@@ -74,6 +74,7 @@ var component = {
             remove_children(this.container);
         }
     },
+    validate : function(name, parent) { return true; },
     header : function () {
         let doc;
         doc = this.type + " " + this.name + "\n";
@@ -131,6 +132,16 @@ function remove_children(container) {
 }
 
 var FullyConnected = Object.create(component);
+FullyConnected.validate = function (name, parent) {
+    var list = {
+        "width":      { valid: true, low: 1, high: Infinity},
+        "height":     { valid: false },
+        "channel":    { valid: false },
+        "stride":     { valid: false },
+        "activation": { valid: true  },
+        "padding":    { valid: false } } ;
+    return list[name];
+};
 FullyConnected.imagename = ['fc.png'];
 FullyConnected.type = "Fully Connected Layer";
 FullyConnected.code = "fc";
@@ -229,6 +240,16 @@ component3D.draw = function(stage, ratio, maxw, maxh) {
 }
 
 var Input = Object.create(component3D);
+Input.validate = function (name, parent) {
+    var list = {
+        "width":      { valid: true, low: 1, high: Infinity},
+        "height":     { valid: true, low: 1, high: Infinity},
+        "channel":    { valid: true, low: 1, high: Infinity},
+        "stride":     { valid: false },
+        "activation": { valid: false },
+        "padding":    { valid: false } } ;
+    return list[name];
+};
 Input.enable = function (parent) {
     if (parent == null)
         return true;
@@ -248,6 +269,21 @@ Input.init = function(pred, name, property) {
 }
 
 var Pool2d = Object.create(component3D);
+Pool2d.validate = function (name, parent) {
+    if (parent == null || parent.output_dim.length < 3) {
+        return {valid : false};
+    }
+    let min = parent.output_dim[0] < parent.output_dim[1] ?
+        parent.output_dim[0] : parent.output_dim[1];
+    var list = {
+        "width":      { valid: true, low: 1, high: parent.output_dim[0]},
+        "height":     { valid: true, low: 1, high: parent.output_dim[1] },
+        "channel":    { valid: false },
+        "stride":     { valid: true, low: 1, high: min },
+        "activation": { valid: false },
+        "padding":    { valid: true } };
+    return list[name];
+};
 Pool2d.type = "Pooling Layer";
 Pool2d.code = "pool";
 Pool2d.imagename = ["pooling.png"];
@@ -288,6 +324,21 @@ Pool2d.doc = function() {
 }
 
 var Conv2d = Object.create(component3D);
+Conv2d.validate = function (name, parent) {
+    if (parent == null || parent.output_dim.length < 3) {
+        return {valid : false};
+    }
+    let min = parent.output_dim[0] < parent.output_dim[1] ?
+        parent.output_dim[0] : parent.output_dim[1];
+    var list = {
+        "width":      { valid: true, low: 1, high: parent.output_dim[0]},
+        "height":     { valid: true, low: 1, high: parent.output_dim[1] },
+        "channel":    { valid: true, low: 1, high: Infinity },
+        "stride":     { valid: true, low: 1, high: min },
+        "activation": { valid: true  },
+        "padding":    { valid: true  } };
+    return list[name];
+};
 Conv2d.type = "Convolutional Layer";
 Conv2d.code = "conv";
 Conv2d.imagename = ["convolution.png"];
@@ -452,6 +503,9 @@ function register_event(obj, par, _start, _end, parameter) {
 }
 
 var radio_box = Object.create(ui_images);
+radio_box.set_validate = function(validate) {
+    this.container.visible = validate.valid;
+}
 radio_box.init = function(stage, def, size) {
     const dark = 0.2, bright = 1.0;
     let start = function(e, p) {
@@ -486,10 +540,14 @@ radio_box.init = function(stage, def, size) {
 }
 
 var select_wheel = Object.create(ui_images);
+select_wheel.set_validate = function(validate) { }
 select_wheel.components = [];
-select_wheel.set_visible = function() {
+select_wheel.value_change = null;
+select_wheel.set_visible = function(value_no_change) {
     for (let i = 0; i < this.nr_sels; i ++)
         this.images[i].visible = this.value == i;
+    if (this.value_change != null && !value_no_change)
+        this.value_change(this.components[this.value]);
 };
 select_wheel.set_value = function() {
     for (let j = 0; j < this.nr_sels; j ++)
@@ -499,20 +557,22 @@ select_wheel.set_value = function() {
         }
 }
 select_wheel.disable = function(value) {
+    let old = this.value;
     for (let i = 0; i < this.components.length; i ++)
         if (value === this.components[i]) {
             this.disabled[i] = true;
             break;
         }
     this.set_value();
-    this.set_visible();
+    this.set_visible(old === this.value);
 };
 select_wheel.enable = function(value) {
+    let old = this.value;
     for (var i = 0; i < this.components.length; i ++)
         if (value === this.components[i])
             this.disabled[i] = false;
     this.set_value();
-    this.set_visible();
+    this.set_visible(old === this.value);
 };
 select_wheel.init = function(parent, size) {
     this.imagename = this.components.reduce(function (sum, x) { return sum.concat(x.imagename); }, ['left.png', 'right.png']);
@@ -531,7 +591,6 @@ select_wheel.init = function(parent, size) {
         this.win.addChild(image);
         this.images.push(image);
     }
-    this.set_visible();
     this.win.width = this.win.height = size;
 
     this.buttonsize = Math.floor(size / 4);
@@ -553,6 +612,7 @@ select_wheel.init = function(parent, size) {
 
     function buttonstart (e, p) {
         let n = 0;
+        let old = this.value;
         do {
             this.value += p;
             while (this.value < 0)
@@ -560,7 +620,7 @@ select_wheel.init = function(parent, size) {
             this.value = this.value % this.nr_sels;
             n ++;
         } while (this.disabled[this.value] == true && n < this.nr_sels);
-        this.set_visible();
+        this.set_visible(old === this.value);
     }
 
     function buttonend (e, p) { }
@@ -571,6 +631,21 @@ select_wheel.init = function(parent, size) {
 
 var number_input = Object.create(ui_images);
 number_input.imagename = ['left.png', 'right.png'];
+number_input.set_validate = function(validate) {
+    if (validate.valid == false) {
+        this.container.visible = false;
+        return;
+    } else {
+        this.container.visible = true;
+        this.low = validate.low;
+        this.high = validate.high;
+        if (this.value >= validate.high || this.value < validate.low) {
+            this.value = validate.low;
+            let digits = ('0'.repeat(this.ndigit) + this.value).slice(-this.ndigit);
+            this.text.text = digits;
+        }
+    }
+}
 number_input.init = function(parent, height, initial_value, low, high) {
     if (low > high)
         low = high;
@@ -586,7 +661,7 @@ number_input.init = function(parent, height, initial_value, low, high) {
     this.ndigit = ndigit;
     this.height = height;
     this.container = new PIXI.Container();
-    const fontstyle = new PIXI.TextStyle( {
+    this.fontstyle = new PIXI.TextStyle( {
         fontFamily: "Courier New",
         fontSize:  height,
         fontStyle: 'italic',
@@ -594,8 +669,8 @@ number_input.init = function(parent, height, initial_value, low, high) {
         align: 'right',
         fill: 0xffffff });
     let digits = ('0'.repeat(ndigit) + this.value).slice(-ndigit);
+    this.text = new PIXI.Text(digits, this.fontstyle);
     this.timeout = pooling_timeout;
-    this.text = new PIXI.Text(digits, fontstyle);
     this.leftbutton  = new PIXI.Sprite(PIXI.loader.resources[this.imagename[0]].texture);
     this.rightbutton = new PIXI.Sprite(PIXI.loader.resources[this.imagename[1]].texture);
     this.leftbutton.width = this.rightbutton.width = this.leftbutton.height = this.rightbutton.height = height;
@@ -650,6 +725,7 @@ number_input.init = function(parent, height, initial_value, low, high) {
 }
 
 var buttons = Object.create(ui_images);
+buttons.set_validate = function(validate) { }
 buttons.imagename = ['plus.jpg', 'minus.jpg', 'ok.jpg'];
 buttons.init = function (parent, size) {
     let plusbutton = new PIXI.Sprite(PIXI.loader.resources[this.imagename[0]].texture);
@@ -707,9 +783,7 @@ buttons.init = function (parent, size) {
                     option.disable(component);
                 }
             }
-            for (let k in state.gadgets) {
-                state.gadgets[k].container.visible = true;
-            }
+            state.gadgets['component'].container.visible = true;
         } else {
             let node = component.collection['root'], parent = null;
             while (node) {
@@ -806,6 +880,19 @@ function setdrag(stage) {
         .on('touchmove', ondragmove);
 }
 
+function component_selected(component) {
+    let node = component.collection['root'], parent = null;
+    while (node) {
+        parent = node;
+        node = node.succ;
+    }
+    for (let k in state.gadgets) {
+        let gadget = state.gadgets[k];
+        validate = component.validate(k, parent);
+        gadget.set_validate(validate);
+    }
+}
+
 (function() {
     let rbox1 = Object.create(radio_box);
     rbox1.imagename = ["linear.png", "sigmoid.png", "relu.png"];
@@ -813,6 +900,7 @@ function setdrag(stage) {
     rbox2.imagename = ["same.png", "valid.png"];
     let component_select = Object.create(select_wheel);
     component_select.components = [Pool2d, Input, FullyConnected, Conv2d];
+    component_select.value_change = component_selected;
 
     let renderer = PIXI.autoDetectRenderer();
 

@@ -62,6 +62,12 @@ var component = {
             this.pred.succ = this;
         component.collection[name] = this;
     },
+    enable: function (parent) {
+        if (parent == null)
+            return false;
+        else
+            return true;
+    },
     init : function () {},
     remove : function() {
         if (this.container) {
@@ -223,6 +229,12 @@ component3D.draw = function(stage, ratio, maxw, maxh) {
 }
 
 var Input = Object.create(component3D);
+Input.enable = function (parent) {
+    if (parent == null)
+        return true;
+    else
+        return false;
+};
 Input.type = "Input Layer";
 Input.code = "input";
 Input.imagename = ["input.jpg"];
@@ -475,6 +487,33 @@ radio_box.init = function(stage, def, size) {
 
 var select_wheel = Object.create(ui_images);
 select_wheel.components = [];
+select_wheel.set_visible = function() {
+    for (let i = 0; i < this.nr_sels; i ++)
+        this.images[i].visible = this.value == i;
+};
+select_wheel.set_value = function() {
+    for (let j = 0; j < this.nr_sels; j ++)
+        if (this.disabled[j] === false) {
+            this.value = j;
+            break;
+        }
+}
+select_wheel.disable = function(value) {
+    for (let i = 0; i < this.components.length; i ++)
+        if (value === this.components[i]) {
+            this.disabled[i] = true;
+            break;
+        }
+    this.set_value();
+    this.set_visible();
+};
+select_wheel.enable = function(value) {
+    for (var i = 0; i < this.components.length; i ++)
+        if (value === this.components[i])
+            this.disabled[i] = false;
+    this.set_value();
+    this.set_visible();
+};
 select_wheel.init = function(parent, size) {
     this.imagename = this.components.reduce(function (sum, x) { return sum.concat(x.imagename); }, ['left.png', 'right.png']);
     this.value = 0;
@@ -482,18 +521,17 @@ select_wheel.init = function(parent, size) {
     this.win = new PIXI.Container();
     this.nr_sels = this.imagename.length - 2;
     this.images = [];
+    this.disabled = [];
     for (let i = 2; i < this.imagename.length; i ++) {
         let name = this.imagename[i];
         image = new PIXI.Sprite(PIXI.loader.resources[name].texture);
         image.width = size;
         image.height = size;
+        this.disabled.push(false);
         this.win.addChild(image);
         this.images.push(image);
-        if (this.value === i - 2)
-            image.visible = true;
-        else
-            image.visible = false;
     }
+    this.set_visible();
     this.win.width = this.win.height = size;
 
     this.buttonsize = Math.floor(size / 4);
@@ -514,13 +552,15 @@ select_wheel.init = function(parent, size) {
     parent.addChild(this.container);
 
     function buttonstart (e, p) {
-        this.value += p;
-        if (this.value < 0)
-            this.value = this.nr_sels - 1;
-        if (this.value >= this.nr_sels)
-            this.value = 0;
-        for (let i = 0; i < this.images.length; i ++)
-            this.images[i].visible = this.value === i ? true : false;
+        let n = 0;
+        do {
+            this.value += p;
+            while (this.value < 0)
+                this.value += this.nr_sels;
+            this.value = this.value % this.nr_sels;
+            n ++;
+        } while (this.disabled[this.value] == true && n < this.nr_sels);
+        this.set_visible();
     }
 
     function buttonend (e, p) { }
@@ -641,7 +681,6 @@ buttons.init = function (parent, size) {
         let change = false;
         if (p === 0) {
             if (create_component() != null) {
-                console.log('here');
                 plusbutton.visible = true;
                 minusbutton.visible = true;
                 okbutton.visible = false;
@@ -651,11 +690,26 @@ buttons.init = function (parent, size) {
                 change = true;
             }
         } else if (p > 0) {
+            let node = component.collection['root'], parent = null;
+            while (node) {
+                parent = node;
+                node = node.succ;
+            }
             plusbutton.visible = false;
             minusbutton.visible = false;
             okbutton.visible = true;
-            for (let k in state.gadgets)
+            let option = state.gadgets['component'];
+            for (let k = 0; k < option.components.length; k ++) {
+                let component = option.components[k];
+                if (component.enable(parent)) {
+                    option.enable(component);
+                } else {
+                    option.disable(component);
+                }
+            }
+            for (let k in state.gadgets) {
                 state.gadgets[k].container.visible = true;
+            }
         } else {
             let node = component.collection['root'], parent = null;
             while (node) {

@@ -133,7 +133,69 @@ function remove_children(container) {
     }
 }
 
-var FullyConnected = Object.create(component);
+var component1D = Object.create(component);
+component1D.type = "1D";
+component1D.code = "oned";
+component1D.imagename = [];
+component1D.draw = function (stage, ratio, maxw, maxh) {
+    let size = this.output_dim[0];
+    let l = Math.floor(Math.log(size)) * 16 + 1;
+    let w = Math.floor(fc_radius * 2 * ratio);
+    let h = Math.floor(fc_radius * 2 * ratio);
+
+    let x = 0, y = 0;
+    this.container = stage;
+    stride = 1;
+    for (let i = 0; i < l; i ++) {
+        let rect = new PIXI.Graphics();
+        rect.beginFill(0x000000);
+        rect.lineStyle(1, 0xffffff, 1);
+        rect.drawRect(x, y, fc_radius, fc_radius);
+        rect.endFill();
+        rect.interactive = true;
+        rect.hitArea = new PIXI.Rectangle(x, y, fc_radius, fc_radius);
+        stage.addChild(rect);
+        x += stride;
+        y += stride;
+        if (x >= maxw || y >= maxh)
+            break;
+    }
+    label(this.doc(), stage, x, y + fc_radius);
+}
+
+var Flatten = Object.create(component1D);
+Flatten.validate = function (name, parent) {
+    var list = {
+        "width":      { valid: false },
+        "height":     { valid: false },
+        "channel":    { valid: false },
+        "stride":     { valid: false },
+        "activation": { valid: false },
+        "padding":    { valid: false } } ;
+    return list[name];
+};
+Flatten.json = function () {
+    var doc = component.json.call(this);
+    return doc;
+};
+Flatten.imagename = ['flatten.png'];
+Flatten.type = "Flatten Layer";
+Flatten.code = "flatten";
+Flatten.init = function(pred, name, property) {
+    this.link(pred, name);
+    let all = 1;
+    for (let i = 0; i < pred.output_dim.length; i ++)
+        all *= pred.output_dim[i];
+    this.input_dim  = pred.output_dim;
+    this.output_dim = [all];
+    return this;
+}
+Flatten.doc = function () {
+    let doc = component.doc.call(this);
+    return doc;
+}
+
+var FullyConnected = Object.create(component1D);
 FullyConnected.validate = function (name, parent) {
     var list = {
         "width":      { valid: true, low: 1, high: Infinity},
@@ -163,31 +225,6 @@ FullyConnected.init = function(pred, name, property) {
     this.input_dim  = [all];
     this.output_dim = [size];
     return this;
-}
-FullyConnected.draw = function (stage, ratio, maxw, maxh) {
-    let size = this.output_dim[0];
-    let l = Math.floor(Math.log(size)) * 16 + 1;
-    let w = Math.floor(fc_radius * 2 * ratio);
-    let h = Math.floor(fc_radius * 2 * ratio);
-
-    let x = 0, y = 0;
-    this.container = stage;
-    stride = 1;
-    for (let i = 0; i < l; i ++) {
-        let rect = new PIXI.Graphics();
-        rect.beginFill(0x000000);
-        rect.lineStyle(1, 0xffffff, 1);
-        rect.drawRect(x, y, fc_radius, fc_radius);
-        rect.endFill();
-        rect.interactive = true;
-        rect.hitArea = new PIXI.Rectangle(x, y, fc_radius, fc_radius);
-        stage.addChild(rect);
-        x += stride;
-        y += stride;
-        if (x >= maxw || y >= maxh)
-            break;
-    }
-    label(this.doc(), stage, x, y + fc_radius);
 }
 FullyConnected.doc = function () {
     let doc = component.doc.call(this);
@@ -246,6 +283,48 @@ component3D.draw = function(stage, ratio, maxw, maxh) {
     }
     label(this.doc(), stage, x, y + h);
 }
+
+var LRN = Object.create(component3D);
+LRN.validate = function (name, parent) {
+    var list = {
+        "width":     { valid: true, low: 1, high: 9999}, /* bias         */
+        "height":    { valid: true, low: 1, high:    5}, /* depth_radius */
+        "channel":   { valid: true, low: 1, high: 9999}, /* alpha        */
+        "stride":    { valid: true, low: 1, high:  999}, /* beta         */
+        "activation":{ valid: false },
+        "padding":   { valid: false } } ;
+    return list[name];
+};
+LRN.json = function () {
+    var doc = component.json.call(this);
+    doc['bias']         = this.bias;
+    doc['depth_radius'] = this.depth_radius;
+    doc['alpha']        = this.alpha;
+    doc['beta']         = this.beta;
+    return doc;
+};
+LRN.imagename = ['lrn.png'];
+LRN.type = "local response normalization";
+LRN.code = "lrn";
+LRN.init = function(pred, name, property) {
+    this.depth_radius = property['height'];
+    this.bias         = property['width']   / 1000;
+    this.alpha        = property['channel'] / 1000;
+    this.beta         = property['stride']  / 100;
+    this.link(pred, name);
+    this.input_dim  = pred.output_dim;
+    this.output_dim = this.input_dim;
+    return this;
+}
+LRN.doc = function () {
+    let doc = component.doc.call(this);
+    doc += " depth_radius " + this.depth_radius + "\n";
+    doc += " bias " + this.bias + "\n";
+    doc += " alpha " + this.alpha + "\n";
+    doc += " beta " + this.beta + "\n";
+    return doc;
+}
+
 
 var Input = Object.create(component3D);
 Input.validate = function (name, parent) {
@@ -617,6 +696,7 @@ select_wheel.init = function(parent, size) {
     this.nr_sels = this.imagename.length - 2;
     this.images = [];
     this.disabled = [];
+    console.log(this.components);
     for (let i = 2; i < this.imagename.length; i ++) {
         let name = this.imagename[i];
         image = new PIXI.Sprite(PIXI.loader.resources[name].texture);
@@ -994,7 +1074,7 @@ function component_selected(component) {
         let rbox2 = Object.create(radio_box);
         rbox2.imagename = ["valid.png", "same.png"];
         let component_select = Object.create(select_wheel);
-        component_select.components = [Pool2d, Input, FullyConnected, Conv2d];
+        component_select.components = [Pool2d, Input, FullyConnected, Conv2d, LRN, Flatten];
         component_select.value_change = component_selected;
     
         let renderer = PIXI.autoDetectRenderer();

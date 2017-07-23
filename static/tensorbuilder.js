@@ -1,4 +1,3 @@
-
 /* constant definition */
 const network_layer_scale = 0.6;
 const control_unit = 32;
@@ -436,6 +435,8 @@ function draw_network(collection, stage, canvasw, canvash) {
         nlayers ++;
         node = node.succ;
     }
+    if (nlayers == 0)
+        return;
     let layerw = Math.floor(canvasw / nlayers), layerh = Math.floor(canvash);
 
     let max_width = 0, max_height = 0;
@@ -864,9 +865,15 @@ function post_json() {
 }
 
 function create_from_json(jsonmodel) {
-    let model = JSON.parse(jsonmodel)["model"];
-    if (model == null)
+    let model;
+    component.collection['root'] = null;
+    try {
+        model = JSON.parse(jsonmodel)["model"];
+        if (model == null)
+            return;
+    } catch (e) {
         return;
+    }
     let components = state.gadgets['component'].components;
     let parent = null;
     for (let i = 0; i < model.length; i ++) {
@@ -996,7 +1003,7 @@ function component_selected(component) {
         renderer.view.style.display = "block";
         renderer.autoResize = true;
         renderer.resize(window.innerWidth, window.innerHeight);
-    
+
         document.body.appendChild(renderer.view);
     
         let stage = new PIXI.Container();
@@ -1082,7 +1089,7 @@ function component_selected(component) {
                 gadget.y = Math.floor(h - gadget.height / 2);
                 offset += gadget.width;
             }
-    
+
             stage.addChild(state.controllayers);
             state.controllayers.x = 0;
             state.controllayers.y = height;

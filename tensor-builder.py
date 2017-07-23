@@ -7,38 +7,34 @@ from flask import Flask, jsonify, redirect, render_template, request, session, u
 
 app = Flask(__name__, static_url_path="", static_folder="static")
 
-def getuid():
-    if 'uid' in session:
-        uid = session['uid']
-    else:
-        uid = uuid.uuid4()
-        session['uid'] = uid
-    return uid
-
 @app.route('/')
-@app.route('/index')
+@app.route('/index.html')
 def index():
+    user = request.args.get('user')
+    session["user"] = user
     return render_template("index.html")
 
 @app.route('/getuid', methods=['GET'])
-def getuid_request():
-    return jsonify({'uid': getuid()})
+def getuid():
+    return jsonify({"uid": session["user"]})
 
 @app.route('/getmodel', methods=['GET'])
 def getmodel_request():
+    uid = session["user"]
     model = {}
-    if 'uid' in session:
-        uid = session['uid']
+    try:
         with open(os.path.join('model', str(uid)), 'r') as modelfile:
             try:
                 model = json.load(modelfile)
             except JSONDecodeError:
                 model = {}
+    except EnvironmentError:
+        model = {}
     return jsonify(model)
 
 @app.route('/model', methods=['POST'])
 def model_request():
-    uid = session['uid']
+    uid = session["user"]
     content = request.json
     with open(os.path.join('model', str(uid)), 'w') as modelfile:
         json.dump(content, modelfile)
@@ -79,7 +75,7 @@ def conv2d_block(f, last, block):
     else:
         activation = 'None'
     f.write("""
-    net = tf.contrib.layers.conv2d(net, {}, [{},{}], [{}, {}], activation_fn = {} padding='{}', scope='{}')\n"""
+    net = tf.contrib.layers.conv2d(net, {}, [{},{}], [{}, {}], activation_fn = {}, padding='{}', scope='{}')\n"""
     .format(block['channel'], block['width'], block['height'], block['stride'], block['stride'], activation, padding, block["name"]))
 
 def generate_tensorflow_model(content, uid):
@@ -93,7 +89,7 @@ def generate_tensorflow_model(content, uid):
         for block in content['model']:
             block_table[block["code"]](tensorflow, last, block)
             last = block
-        tensorflow.write('return net\n')
+        tensorflow.write('    return net\n')
 
 app.secret_key = 'jcizybHUbu0s8&h16ba8sd;;'
 app.run(debug=True, host = "0.0.0.0", port=8080)

@@ -41,9 +41,15 @@ def model_request():
         generate_tensorflow_model(content, uid)
     return jsonify({"code": "success"})
 
+def flatten_block(f, last, block):
+    f.write("""
+    net = tf.contrib.layers.flatten(net, scope='{}')""".format(block['name']))
+
+def lrn_block(f, last, block):
+    f.write("""
+    net = tf.nn.lrn(net, {}, bias = {:.2f}, alpha = {:.3f}/9.0, beta = {:.3f}, name = '{}')\n""".format(block['height'], block['width'] / 1000.0, block['channel'] / 10000.0, block['stride'] / 100.0, block['name']))
+
 def input_block(f, last, block):
-    f.write('import tensorflow as tf\n')
-    f.write('import numpy as np\n')
     f.write('def model(net):\n')
 
 def fc_block(f, last, block):
@@ -52,9 +58,7 @@ def fc_block(f, last, block):
     else:
         activation = 'None'
     f.write("""
-    net = tf.contrib.layers.flatten(net)\n""")
-    f.write("""
-    net = tf.contrib.layers.fully_connected(net, {}, activation={}, scope='{}')\n""".format(block['width'], activation, block['name']))
+    net = tf.contrib.layers.fully_connected(net, {}, activation_fn={}, scope='{}')\n""".format(block['width'], activation, block['name']))
 
 def pool2d_block(f, last, block):
     if block['padding'] == True:
@@ -62,8 +66,8 @@ def pool2d_block(f, last, block):
     else:
         padding = 'VALID'
     f.write("""
-    net = tf.contrib.layers.max_pool2d(net, [{}, {}], [{}, {}], padding='{}', scope='{}')\n"""
-    .format(block['width'], block['height'], block['stride'], block['stride'], padding, block['name']))
+    net = tf.contrib.layers.max_pool2d(net, [{}, {}], {}, padding='{}', scope='{}')\n"""
+    .format(block['width'], block['height'], block['stride'], padding, block['name']))
 
 def conv2d_block(f, last, block):
     if block['padding'] == True:
@@ -75,15 +79,17 @@ def conv2d_block(f, last, block):
     else:
         activation = 'None'
     f.write("""
-    net = tf.contrib.layers.conv2d(net, {}, [{},{}], [{}, {}], activation_fn = {}, padding='{}', scope='{}')\n"""
-    .format(block['channel'], block['width'], block['height'], block['stride'], block['stride'], activation, padding, block["name"]))
+    net = tf.contrib.layers.conv2d(net, {}, [{},{}], {}, activation_fn = {}, padding='{}', scope='{}')\n"""
+    .format(block['channel'], block['width'], block['height'], block['stride'], activation, padding, block["name"]))
 
 def generate_tensorflow_model(content, uid):
     block_table = {
-        "input": input_block,
-        "conv":  conv2d_block,
-        "pool":  pool2d_block,
-        "fc":    fc_block }
+        "flatten": flatten_block,
+        "lrn":     lrn_block,
+        "input":   input_block,
+        "conv":    conv2d_block,
+        "pool":    pool2d_block,
+        "fc":      fc_block }
     last = None
     with open(os.path.join('model', str(uid) + '.py'), 'w') as tensorflow:
         for block in content['model']:

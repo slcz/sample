@@ -290,17 +290,17 @@ LRN.validate = function (name, parent) {
         "width":     { valid: true, low: 1, high: 9999}, /* bias         */
         "height":    { valid: true, low: 1, high:    5}, /* depth_radius */
         "channel":   { valid: true, low: 1, high: 9999}, /* alpha        */
-        "stride":    { valid: true, low: 1, high:  999}, /* beta         */
+        "stride":    { valid: true, low: 1, high:   99}, /* beta         */
         "activation":{ valid: false },
         "padding":   { valid: false } } ;
     return list[name];
 };
 LRN.json = function () {
     var doc = component.json.call(this);
-    doc['bias']         = this.bias;
-    doc['depth_radius'] = this.depth_radius;
-    doc['alpha']        = this.alpha;
-    doc['beta']         = this.beta;
+    doc['width']        = this.bias;
+    doc['height']       = this.depth_radius;
+    doc['channel']      = this.alpha;
+    doc['stride']       = this.beta;
     return doc;
 };
 LRN.imagename = ['lrn.png'];
@@ -308,9 +308,9 @@ LRN.type = "local response normalization";
 LRN.code = "lrn";
 LRN.init = function(pred, name, property) {
     this.depth_radius = property['height'];
-    this.bias         = property['width']   / 1000;
-    this.alpha        = property['channel'] / 1000;
-    this.beta         = property['stride']  / 100;
+    this.bias         = property['width'];
+    this.alpha        = property['channel'];
+    this.beta         = property['stride'];
     this.link(pred, name);
     this.input_dim  = pred.output_dim;
     this.output_dim = this.input_dim;
@@ -319,12 +319,11 @@ LRN.init = function(pred, name, property) {
 LRN.doc = function () {
     let doc = component.doc.call(this);
     doc += " depth_radius " + this.depth_radius + "\n";
-    doc += " bias " + this.bias + "\n";
-    doc += " alpha " + this.alpha + "\n";
-    doc += " beta " + this.beta + "\n";
+    doc += " bias " + this.bias / 1000.0 + "\n";
+    doc += " alpha " + this.alpha / 10000.0 + "\n";
+    doc += " beta " + this.beta / 100.0 + "\n";
     return doc;
 }
-
 
 var Input = Object.create(component3D);
 Input.validate = function (name, parent) {

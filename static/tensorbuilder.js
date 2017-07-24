@@ -198,7 +198,7 @@ Flatten.doc = function () {
 var FullyConnected = Object.create(component1D);
 FullyConnected.validate = function (name, parent) {
     var list = {
-        "width":      { valid: true, low: 1, high: Infinity},
+        "width":      { valid: true, low: 1, high: 9999, decimal: 0},
         "height":     { valid: false },
         "channel":    { valid: false },
         "stride":     { valid: false },
@@ -287,20 +287,20 @@ component3D.draw = function(stage, ratio, maxw, maxh) {
 var LRN = Object.create(component3D);
 LRN.validate = function (name, parent) {
     var list = {
-        "width":     { valid: true, low: 1, high: 9999}, /* bias         */
-        "height":    { valid: true, low: 1, high:    5}, /* depth_radius */
-        "channel":   { valid: true, low: 1, high: 9999}, /* alpha        */
-        "stride":    { valid: true, low: 1, high:   99}, /* beta         */
+        "width":     { valid: true, low: 1, high: 9999, decimal : 3}, /* bias         */
+        "height":    { valid: true, low: 1, high:    9, decimal : 0}, /* depth_radius */
+        "channel":   { valid: true, low: 1, high: 9999, decimal : 4}, /* alpha        */
+        "stride":    { valid: true, low: 1, high:   99, decimal : 2}, /* beta         */
         "activation":{ valid: false },
         "padding":   { valid: false } } ;
     return list[name];
 };
 LRN.json = function () {
     var doc = component.json.call(this);
-    doc['width']        = this.bias;
-    doc['height']       = this.depth_radius;
-    doc['channel']      = this.alpha;
-    doc['stride']       = this.beta;
+    doc['width']   = this.bias;
+    doc['height']  = this.depth_radius;
+    doc['channel'] = this.alpha;
+    doc['stride']  = this.beta;
     return doc;
 };
 LRN.imagename = ['lrn.png'];
@@ -319,18 +319,18 @@ LRN.init = function(pred, name, property) {
 LRN.doc = function () {
     let doc = component.doc.call(this);
     doc += " depth_radius " + this.depth_radius + "\n";
-    doc += " bias " + this.bias / 1000.0 + "\n";
-    doc += " alpha " + this.alpha / 10000.0 + "\n";
-    doc += " beta " + this.beta / 100.0 + "\n";
+    doc += " bias " + this.bias + "\n";
+    doc += " alpha " + this.alpha + "\n";
+    doc += " beta " + this.beta + "\n";
     return doc;
 }
 
 var Input = Object.create(component3D);
 Input.validate = function (name, parent) {
     var list = {
-        "width":      { valid: true, low: 1, high: Infinity},
-        "height":     { valid: true, low: 1, high: Infinity},
-        "channel":    { valid: true, low: 1, high: Infinity},
+        "width":      { valid: true, low: 1, high: 9999, decimal : 0},
+        "height":     { valid: true, low: 1, high: 9999, decimal : 0},
+        "channel":    { valid: true, low: 1, high: 9999, decimal : 0},
         "stride":     { valid: false },
         "activation": { valid: false },
         "padding":    { valid: false } } ;
@@ -369,10 +369,10 @@ Pool2d.validate = function (name, parent) {
     let min = parent.output_dim[0] < parent.output_dim[1] ?
         parent.output_dim[0] : parent.output_dim[1];
     var list = {
-        "width":      { valid: true, low: 1, high: parent.output_dim[0]},
-        "height":     { valid: true, low: 1, high: parent.output_dim[1] },
+        "width":      { valid: true, low: 1, high: parent.output_dim[0], decimal: 0},
+        "height":     { valid: true, low: 1, high: parent.output_dim[1], decimal: 0 },
         "channel":    { valid: false },
-        "stride":     { valid: true, low: 1, high: min },
+        "stride":     { valid: true, low: 1, high: min, decimal: 0},
         "activation": { valid: false },
         "padding":    { valid: true } };
     return list[name];
@@ -432,10 +432,10 @@ Conv2d.validate = function (name, parent) {
     let min = parent.output_dim[0] < parent.output_dim[1] ?
         parent.output_dim[0] : parent.output_dim[1];
     var list = {
-        "width":      { valid: true, low: 1, high: parent.output_dim[0]},
-        "height":     { valid: true, low: 1, high: parent.output_dim[1] },
-        "channel":    { valid: true, low: 1, high: Infinity },
-        "stride":     { valid: true, low: 1, high: min },
+        "width":      { valid: true, low: 1, high: parent.output_dim[0], decimal:0 },
+        "height":     { valid: true, low: 1, high: parent.output_dim[1], decimal:0 },
+        "channel":    { valid: true, low: 1, high: 9999, decimal: 0 },
+        "stride":     { valid: true, low: 1, high: min, decimal: 0 },
         "activation": { valid: true  },
         "padding":    { valid: true  } };
     return list[name];
@@ -695,7 +695,6 @@ select_wheel.init = function(parent, size) {
     this.nr_sels = this.imagename.length - 2;
     this.images = [];
     this.disabled = [];
-    console.log(this.components);
     for (let i = 2; i < this.imagename.length; i ++) {
         let name = this.imagename[i];
         image = new PIXI.Sprite(PIXI.loader.resources[name].texture);
@@ -745,45 +744,52 @@ select_wheel.init = function(parent, size) {
 
 var number_input = Object.create(ui_images);
 number_input.imagename = ['left.png', 'right.png'];
+number_input.low_    = 0;
+number_input.high_   = 1;
+number_input.decimal = 0;
+number_input.set_value = function() {
+    this.text.text = '' + this.value;
+    let width = this.decimal > 0 ? this.width - 1 : this.width;
+    this.text.text = ('0'.repeat(width) + this.value).slice(-width);
+    if (this.decimal > 0) {
+        let str = this.text.text;
+        str = str.slice(0, -this.decimal) + "." + str.slice(-this.decimal);
+        this.text.text = str;
+    }
+}
+number_input.set_number_format = function(low, high, decimal) {
+    if (low >= high)
+        return;
+    this.low_     = low;
+    this.high_    = high;
+    this.decimal  = decimal;
+    if (this.value >= this.high_ || this.value < this.low_) {
+        this.value = this.low_;
+    }
+}
 number_input.set_validate = function(validate) {
     if (validate.valid == false) {
         this.container.visible = false;
-        return;
     } else {
         this.container.visible = true;
-        this.low = validate.low;
-        this.high = validate.high;
-        if (this.value >= validate.high || this.value < validate.low) {
-            this.value = validate.low;
-            let digits = ('0'.repeat(this.ndigit) + this.value).slice(-this.ndigit);
-            this.text.text = digits;
-        }
+        this.set_number_format(validate.low, validate.high, validate.decimal);
+        this.set_value();
     }
 }
-number_input.init = function(parent, height, initial_value, low, high) {
-    if (low > high)
-        low = high;
-    let ndigit = 0;
-    let tmp = high;
-    while (tmp != 0) {
-        ndigit ++;
-        tmp = Math.floor(tmp / 10);
-    }
-    this.low = low;
-    this.high = high;
-    this.value = initial_value;
-    this.ndigit = ndigit;
+number_input.init = function(parent, height, width) {
+    this.width  = width;
     this.height = height;
     this.container = new PIXI.Container();
     this.fontstyle = new PIXI.TextStyle( {
         fontFamily: "Courier New",
-        fontSize:  height,
-        fontStyle: 'italic',
+        fontSize:   height,
+        fontStyle:  'italic',
         fontWeight: 'bold',
-        align: 'right',
-        fill: 0xffffff });
-    let digits = ('0'.repeat(ndigit) + this.value).slice(-ndigit);
-    this.text = new PIXI.Text(digits, this.fontstyle);
+        align:      'right',
+        fill:       0xffffff });
+    this.value = 0;
+    this.text = new PIXI.Text(' '.repeat(this.width), this.fontstyle);
+    this.set_value();
     this.timeout = pooling_timeout;
     this.leftbutton  = new PIXI.Sprite(PIXI.loader.resources[this.imagename[0]].texture);
     this.rightbutton = new PIXI.Sprite(PIXI.loader.resources[this.imagename[1]].texture);
@@ -800,10 +806,9 @@ number_input.init = function(parent, height, initial_value, low, high) {
 
     function settext() {
         this.value += this.delta;
-        this.value = this.value < this.low ?  this.low :
-            this.value > this.high ? this.high : this.value;
-        let digits = ('0'.repeat(this.ndigit) + this.value).slice(-this.ndigit);
-        this.text.text = digits;
+        this.value = this.value < this.low_ ?  this.low_:
+            this.value > this.high_ ? this.high_ : this.value;
+        this.set_value();
     }
 
     function timer() {
@@ -988,7 +993,10 @@ function create_component() {
     let pairs = {};
     for (let gadget in state.gadgets) {
         let obj = state.gadgets[gadget];
-        pairs[obj.name] = obj.value;
+        if (obj.decimal > 0) {
+            pairs[obj.name] = obj.value / Math.pow(10, obj.decimal);
+        } else
+            pairs[obj.name] = obj.value;
     }
     let obj = state.gadgets['component'].components[pairs['component']];
 
@@ -1111,16 +1119,16 @@ function component_selected(component) {
             component_select.init(state.controllayers, component_select_size);
     
             let width_input = Object.create(number_input);
-            width_input.init(state.controllayers, number_input_size, 0, 0, 9999);
+            width_input.init(state.controllayers, number_input_size, 6);
     
             let height_input = Object.create(number_input);
-            height_input.init(state.controllayers, number_input_size, 0, 0, 9999);
+            height_input.init(state.controllayers, number_input_size, 6);
     
             let channel_input = Object.create(number_input);
-            channel_input.init(state.controllayers, number_input_size, 0, 0, 9999);
+            channel_input.init(state.controllayers, number_input_size, 6);
     
             let stride_input = Object.create(number_input);
-            stride_input.init(state.controllayers, number_input_size, 0, 0, 99);
+            stride_input.init(state.controllayers, number_input_size, 6);
     
             rbox1.init(state.controllayers, 2, radio_box_size);
     

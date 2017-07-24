@@ -47,7 +47,7 @@ def flatten_block(f, last, block):
 
 def lrn_block(f, last, block):
     f.write("""
-    net = tf.nn.lrn(net, {}, bias = {:.2f}, alpha = {:.3f}, beta = {:.3f}, name = '{}')\n""".format(block['height'], block['width'], block['channel'], block['stride'], block['name']))
+    net = tf.nn.lrn(net, {}, bias = {:.2f}, alpha = {:.4f}, beta = {:.3f}, name = '{}')\n""".format(block['height'], block['width'], block['channel'], block['stride'], block['name']))
 
 def input_block(f, last, block):
     f.write('def model(net):\n')

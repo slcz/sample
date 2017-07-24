@@ -107,7 +107,7 @@ var component = {
 
 function label(doc, container, x, y) {
     let text = new PIXI.Text(doc,
-        {fontFamily: 'Arial', fontSize: 12, fill: 0xffffff, align : 'center'});
+        {fontFamily: 'Arial', fontSize: 16, fill: 0xffffff, align : 'center'});
     text.visible = false;
     let children = container.children;
     let lx = 0, ly = 0;
@@ -124,6 +124,7 @@ function label(doc, container, x, y) {
     text.y = y;
 
     container.addChild(text);
+    return text;
 }
 
 function remove_children(container) {
@@ -198,11 +199,11 @@ Flatten.doc = function () {
 var FullyConnected = Object.create(component1D);
 FullyConnected.validate = function (name, parent) {
     var list = {
-        "width":      { valid: true, low: 1, high: 9999, decimal: 0},
+        "width":      { valid: true, low: 1, high: 9999, decimal: 0, doc: "output cells"},
         "height":     { valid: false },
         "channel":    { valid: false },
         "stride":     { valid: false },
-        "activation": { valid: true  },
+        "activation": { valid: true, doc: "Activation:\nNo(linear)\nSigmoid\nRelu\n" },
         "padding":    { valid: false } } ;
     return list[name];
 };
@@ -287,10 +288,10 @@ component3D.draw = function(stage, ratio, maxw, maxh) {
 var LRN = Object.create(component3D);
 LRN.validate = function (name, parent) {
     var list = {
-        "width":     { valid: true, low: 1, high: 9999, decimal : 3}, /* bias         */
-        "height":    { valid: true, low: 1, high:    9, decimal : 0}, /* depth_radius */
-        "channel":   { valid: true, low: 1, high: 9999, decimal : 4}, /* alpha        */
-        "stride":    { valid: true, low: 1, high:   99, decimal : 2}, /* beta         */
+        "width":     { valid: true, low: 1, high: 9999, decimal : 3, doc: "bias"}, /* bias         */
+        "height":    { valid: true, low: 1, high:    9, decimal : 0, doc: "depth radius"}, /* depth_radius */
+        "channel":   { valid: true, low: 1, high: 9999, decimal : 4, doc: "alpha"}, /* alpha        */
+        "stride":    { valid: true, low: 1, high:   99, decimal : 2, doc: "beta"}, /* beta         */
         "activation":{ valid: false },
         "padding":   { valid: false } } ;
     return list[name];
@@ -328,9 +329,9 @@ LRN.doc = function () {
 var Input = Object.create(component3D);
 Input.validate = function (name, parent) {
     var list = {
-        "width":      { valid: true, low: 1, high: 9999, decimal : 0},
-        "height":     { valid: true, low: 1, high: 9999, decimal : 0},
-        "channel":    { valid: true, low: 1, high: 9999, decimal : 0},
+        "width":      { valid: true, low: 1, high: 9999, decimal : 0, doc: "input width"},
+        "height":     { valid: true, low: 1, high: 9999, decimal : 0, doc: "input height"},
+        "channel":    { valid: true, low: 1, high: 9999, decimal : 0, doc: "input (color) channels"},
         "stride":     { valid: false },
         "activation": { valid: false },
         "padding":    { valid: false } } ;
@@ -369,12 +370,12 @@ Pool2d.validate = function (name, parent) {
     let min = parent.output_dim[0] < parent.output_dim[1] ?
         parent.output_dim[0] : parent.output_dim[1];
     var list = {
-        "width":      { valid: true, low: 1, high: parent.output_dim[0], decimal: 0},
-        "height":     { valid: true, low: 1, high: parent.output_dim[1], decimal: 0 },
+        "width":      { valid: true, low: 1, high: parent.output_dim[0], decimal: 0, doc: "kernel width"},
+        "height":     { valid: true, low: 1, high: parent.output_dim[1], decimal: 0, doc: "kernel height"},
         "channel":    { valid: false },
-        "stride":     { valid: true, low: 1, high: min, decimal: 0},
+        "stride":     { valid: true, low: 1, high: min, decimal: 0, doc: "stride"},
         "activation": { valid: false },
-        "padding":    { valid: true } };
+        "padding":    { valid: true, doc: "Padding:same size/ valid only" } };
     return list[name];
 };
 Pool2d.type = "Pooling Layer";
@@ -432,12 +433,12 @@ Conv2d.validate = function (name, parent) {
     let min = parent.output_dim[0] < parent.output_dim[1] ?
         parent.output_dim[0] : parent.output_dim[1];
     var list = {
-        "width":      { valid: true, low: 1, high: parent.output_dim[0], decimal:0 },
-        "height":     { valid: true, low: 1, high: parent.output_dim[1], decimal:0 },
-        "channel":    { valid: true, low: 1, high: 9999, decimal: 0 },
-        "stride":     { valid: true, low: 1, high: min, decimal: 0 },
-        "activation": { valid: true  },
-        "padding":    { valid: true  } };
+        "width":      { valid: true, low: 1, high: parent.output_dim[0], decimal:0, doc: "kernel width" },
+        "height":     { valid: true, low: 1, high: parent.output_dim[1], decimal:0, doc: "kernel height" },
+        "channel":    { valid: true, low: 1, high: 9999, decimal: 0, doc: "channels" },
+        "stride":     { valid: true, low: 1, high: min, decimal: 0, doc: "stride" },
+        "activation": { valid: true, doc: "Activation:\nNo(linear)\nSigmoid\nRelu\n" },
+        "padding":    { valid: true, doc: "Padding:same size/ valid only" } };
     return list[name];
 };
 Conv2d.type = "Convolutional Layer";
@@ -591,6 +592,16 @@ var timer_queue = {
 
 var ui_images = {
     __image__  : [],
+    container  : null,
+    docbox     : null,
+    set doc(docstring) {
+        if (this.docbox == null)
+            this.docbox = label(docstring, this.container,
+                this.container.x,
+                this.container.y + this.container.height);
+        else
+            this.docbox.text = docstring;
+    },
     name : "",
     value : null,
     set imagename(name) {
@@ -618,6 +629,8 @@ function register_event(obj, par, _start, _end, parameter) {
 var radio_box = Object.create(ui_images);
 radio_box.set_validate = function(validate) {
     this.container.visible = validate.valid;
+    if (validate.doc != undefined)
+        this.doc = validate.doc;
 }
 radio_box.init = function(stage, def, size) {
     const dark = 0.2, bright = 1.0;
@@ -649,6 +662,7 @@ radio_box.init = function(stage, def, size) {
         pic.x = i * size;
         this.container.addChild(pic);
     }
+    this.doc = "";
     stage.addChild(this.container);
 }
 
@@ -661,6 +675,7 @@ select_wheel.set_visible = function(value_no_change) {
         this.images[i].visible = this.value == i;
     if (this.value_change != null && !value_no_change)
         this.value_change(this.components[this.value]);
+    this.doc = this.components[this.value].type;
 };
 select_wheel.set_value = function() {
     for (let j = 0; j < this.nr_sels; j ++)
@@ -722,6 +737,7 @@ select_wheel.init = function(parent, size) {
     this.container.width = size + 2 * this.buttonsize;
     this.container.height = size;
     parent.addChild(this.container);
+    this.doc = "";
 
     function buttonstart (e, p) {
         let n = 0;
@@ -774,6 +790,8 @@ number_input.set_validate = function(validate) {
         this.container.visible = true;
         this.set_number_format(validate.low, validate.high, validate.decimal);
         this.set_value();
+        if (validate.doc != undefined)
+            this.doc = validate.doc;
     }
 }
 number_input.init = function(parent, height, width) {
@@ -840,6 +858,7 @@ number_input.init = function(parent, height, width) {
     register_event(this.leftbutton,  this, buttonstart, buttonend, -1);
     register_event(this.rightbutton, this, buttonstart, buttonend,  1);
 
+    this.doc = "";
     parent.addChild(this.container);
 }
 
@@ -865,6 +884,8 @@ buttons.init = function (parent, size) {
     plusbutton.interactive = true;
     minusbutton.interactive = true;
     okbutton.interactive = true;
+
+    this.doc = "(+) add one layer\n(-) delete last layer\n(ok) save layer design";
 
     register_event(plusbutton,  this, buttonstart, buttonend,  1);
     register_event(minusbutton, this, buttonstart, buttonend, -1);

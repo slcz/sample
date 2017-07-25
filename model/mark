@@ -1,0 +1,1 @@
+{"model": [{"name": "input1", "code": "input", "width": 17, "height": 17, "channel": 4}, {"name": "conv2", "code": "conv", "width": 3, "height": 2, "channel": 91, "stride": 1, "padding": false, "activation": true}, {"name": "pool3", "code": "pool", "width": 4, "height": 4, "stride": 2, "padding": false}, {"name": "fc4", "code": "fc", "width": 254, "activation": true}]}

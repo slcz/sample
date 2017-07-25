@@ -1,0 +1,1 @@
+{"model": [{"name": "input1", "code": "input", "width": 31, "height": 46, "channel": 3}, {"name": "lrn2", "code": "lrn", "width": 0.1, "height": 9, "channel": 0.01, "stride": 0.99}]}
